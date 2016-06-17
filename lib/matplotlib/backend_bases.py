@@ -39,6 +39,7 @@ import six
 from six.moves import xrange
 
 from contextlib import contextmanager
+from functools import partial
 import importlib
 import io
 import os
@@ -51,7 +52,6 @@ import matplotlib.cbook as cbook
 import matplotlib.colors as colors
 import matplotlib.transforms as transforms
 import matplotlib.widgets as widgets
-#import matplotlib.path as path
 from matplotlib import rcParams
 from matplotlib import is_interactive
 from matplotlib import get_backend
@@ -2756,6 +2756,13 @@ class NavigationToolbar2(object):
         self.mode = ''  # a mode string for the status bar
         self.set_history_buttons()
 
+        @partial(canvas.mpl_connect, 'draw_event')
+        def define_home(event):
+            self.push_current()
+            # The decorator sets `define_home` to the callback cid, so we can
+            # disconnect it after the first use.
+            canvas.mpl_disconnect(define_home)
+
     def set_message(self, s):
         """Display a message on toolbar or in status bar"""
         pass
@@ -2906,11 +2913,6 @@ class NavigationToolbar2(object):
             return
 
         x, y = event.x, event.y
-
-        # push the current view to define home if stack is empty
-        if self._views.empty():
-            self.push_current()
-
         self._xypress = []
         for i, a in enumerate(self.canvas.figure.get_axes()):
             if (x is not None and y is not None and a.in_axes(event) and
@@ -2946,11 +2948,6 @@ class NavigationToolbar2(object):
             return
 
         x, y = event.x, event.y
-
-        # push the current view to define home if stack is empty
-        if self._views.empty():
-            self.push_current()
-
         self._xypress = []
         for i, a in enumerate(self.canvas.figure.get_axes()):
             if (x is not None and y is not None and a.in_axes(event) and
