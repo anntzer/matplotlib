@@ -45,17 +45,18 @@ def figure_edit(axes, parent=None):
     sep = (None, None)  # separator
 
     # Get / General
-    xmin, xmax = map(float, axes.get_xlim())
-    ymin, ymax = map(float, axes.get_ylim())
+    # Cast to builtin floats as they have nicer reprs.
+    orig_xmin, orig_xmax = map(float, axes.get_xlim())
+    orig_ymin, orig_ymax = map(float, axes.get_ylim())
     general = [('Title', axes.get_title()),
                sep,
                (None, "<b>X-Axis</b>"),
-               ('Min', xmin), ('Max', xmax),
+               ('Min', orig_xmin), ('Max', orig_xmax),
                ('Label', axes.get_xlabel()),
                ('Scale', [axes.get_xscale(), 'linear', 'log']),
                sep,
                (None, "<b>Y-Axis</b>"),
-               ('Min', ymin), ('Max', ymax),
+               ('Min', orig_ymin), ('Max', orig_ymax),
                ('Label', axes.get_ylabel()),
                ('Scale', [axes.get_yscale(), 'linear', 'log']),
                sep,
@@ -234,7 +235,9 @@ def figure_edit(axes, parent=None):
         # Redraw
         figure = axes.get_figure()
         figure.canvas.draw()
-        figure.canvas.toolbar.push_current()
+        if not ((xmin, xmax) == (orig_xmin, orig_xmax)
+                and (ymin, ymax) == (orig_ymin, orig_ymax)):
+            figure.canvas.toolbar.push_current()
 
     data = formlayout.fedit(datalist, title="Figure options", parent=parent,
                             icon=get_icon('qt4_editor_options.svg'),
