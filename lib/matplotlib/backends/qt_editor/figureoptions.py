@@ -167,6 +167,8 @@ def figure_edit(axes, parent=None):
 
     def apply_callback(data):
         """This function will be called to apply changes"""
+        orig_xmin, orig_xmax = map(float, axes.get_xlim())
+        orig_ymin, orig_ymax = map(float, axes.get_ylim())
         general = data.pop(0)
         curves = data.pop(0) if has_curve else []
         images = data.pop(0) if has_image else []
@@ -235,8 +237,8 @@ def figure_edit(axes, parent=None):
         # Redraw
         figure = axes.get_figure()
         figure.canvas.draw()
-        if not ((xmin, xmax) == (orig_xmin, orig_xmax)
-                and (ymin, ymax) == (orig_ymin, orig_ymax)):
+        if not ((xmin, xmax) == (orig_xmin, orig_xmax) and
+                (ymin, ymax) == (orig_ymin, orig_ymax)):
             figure.canvas.toolbar.push_current()
 
     data = formlayout.fedit(datalist, title="Figure options", parent=parent,
