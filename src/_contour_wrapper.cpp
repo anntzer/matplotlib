@@ -33,12 +33,12 @@ static int PyQuadContourGenerator_init(PyQuadContourGenerator* self, PyObject* a
     bool corner_mask;
     long chunk_size;
 
-    if (!PyArg_ParseTuple(args, "O&O&O&O&O&l",
+    if (!PyArg_ParseTuple(args, "O&O&O&O&pl",
                           &x.converter_contiguous, &x,
                           &y.converter_contiguous, &y,
                           &z.converter_contiguous, &z,
                           &mask.converter_contiguous, &mask,
-                          &convert_bool, &corner_mask,
+                          &corner_mask,
                           &chunk_size)) {
         return -1;
     }

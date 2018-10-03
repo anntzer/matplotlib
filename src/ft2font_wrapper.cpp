@@ -833,8 +833,8 @@ static PyObject *PyFT2Font_draw_glyphs_to_bitmap(PyFT2Font *self, PyObject *args
     bool antialiased = true;
     const char *names[] = { "antialiased", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O&:draw_glyphs_to_bitmap",
-                                     (char **)names, &convert_bool, &antialiased)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|p:draw_glyphs_to_bitmap",
+                                     (char **)names, &antialiased)) {
         return NULL;
     }
 
@@ -854,8 +854,8 @@ static PyObject *PyFT2Font_get_xys(PyFT2Font *self, PyObject *args, PyObject *kw
     std::vector<double> xys;
     const char *names[] = { "antialiased", NULL };
 
-    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|O&:get_xys",
-                                     (char **)names, &convert_bool, &antialiased)) {
+    if (!PyArg_ParseTupleAndKeywords(args, kwds, "|p:get_xys",
+                                     (char **)names, &antialiased)) {
         return NULL;
     }
 
@@ -886,7 +886,7 @@ static PyObject *PyFT2Font_draw_glyph_to_bitmap(PyFT2Font *self, PyObject *args,
 
     if (!PyArg_ParseTupleAndKeywords(args,
                                      kwds,
-                                     "O!ddO!|O&:draw_glyph_to_bitmap",
+                                     "O!ddO!|p:draw_glyph_to_bitmap",
                                      (char **)names,
                                      &PyFT2ImageType,
                                      &image,
@@ -894,7 +894,6 @@ static PyObject *PyFT2Font_draw_glyph_to_bitmap(PyFT2Font *self, PyObject *args,
                                      &yd,
                                      &PyGlyphType,
                                      &glyph,
-                                     &convert_bool,
                                      &antialiased)) {
         return NULL;
     }

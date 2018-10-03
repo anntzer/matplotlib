@@ -126,10 +126,10 @@ image_resample(PyObject *self, PyObject* args, PyObject *kwargs)
         "resample", "alpha", "norm", "radius", NULL };
 
     if (!PyArg_ParseTupleAndKeywords(
-            args, kwargs, "OOO|iO&dO&d:resample", (char **)kwlist,
+            args, kwargs, "OOO|ipdpd:resample", (char **)kwlist,
             &py_input_array, &py_output_array, &py_transform,
-            &params.interpolation, &convert_bool, &params.resample,
-            &params.alpha, &convert_bool, &params.norm, &params.radius)) {
+            &params.interpolation, &params.resample, &params.alpha,
+            &params.norm, &params.radius)) {
         return NULL;
     }
 

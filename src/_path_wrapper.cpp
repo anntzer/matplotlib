@@ -315,7 +315,7 @@ static PyObject *Py_point_in_path_collection(PyObject *self, PyObject *args, PyO
     std::vector<int> result;
 
     if (!PyArg_ParseTuple(args,
-                          "dddO&OO&O&O&O&O&:point_in_path_collection",
+                          "dddO&OO&O&O&pO&:point_in_path_collection",
                           &x,
                           &y,
                           &radius,
@@ -328,7 +328,6 @@ static PyObject *Py_point_in_path_collection(PyObject *self, PyObject *args, PyO
                           &offsets,
                           &convert_trans_affine,
                           &offset_trans,
-                          &convert_bool,
                           &filled,
                           &convert_offset_position,
                           &offset_position)) {
@@ -407,12 +406,11 @@ static PyObject *Py_clip_path_to_rect(PyObject *self, PyObject *args, PyObject *
     std::vector<Polygon> result;
 
     if (!PyArg_ParseTuple(args,
-                          "O&O&O&:clip_path_to_rect",
+                          "O&O&p:clip_path_to_rect",
                           &convert_path,
                           &path,
                           &convert_rect,
                           &rect,
-                          &convert_bool,
                           &inside)) {
         return NULL;
     }
@@ -537,7 +535,7 @@ static PyObject *Py_path_intersects_rectangle(PyObject *self, PyObject *args, Py
 
     if (!PyArg_ParseTupleAndKeywords(args,
                                      kwds,
-                                     "O&dddd|O&:path_intersects_rectangle",
+                                     "O&dddd|p:path_intersects_rectangle",
                                      (char **)names,
                                      &convert_path,
                                      &path,
@@ -545,7 +543,6 @@ static PyObject *Py_path_intersects_rectangle(PyObject *self, PyObject *args, Py
                                      &rect_y1,
                                      &rect_x2,
                                      &rect_y2,
-                                     &convert_bool,
                                      &filled)) {
         return NULL;
     }
@@ -609,12 +606,11 @@ static PyObject *Py_cleanup_path(PyObject *self, PyObject *args, PyObject *kwds)
     SketchParams sketch;
 
     if (!PyArg_ParseTuple(args,
-                          "O&O&O&O&O&dOO&O&:cleanup_path",
+                          "O&O&pO&O&dOpO&:cleanup_path",
                           &convert_path,
                           &path,
                           &convert_trans_affine,
                           &trans,
-                          &convert_bool,
                           &remove_nans,
                           &convert_rect,
                           &clip_rect,
@@ -622,7 +618,6 @@ static PyObject *Py_cleanup_path(PyObject *self, PyObject *args, PyObject *kwds)
                           &snap_mode,
                           &stroke_width,
                           &simplifyobj,
-                          &convert_bool,
                           &return_curves,
                           &convert_sketch_params,
                           &sketch)) {
@@ -689,7 +684,7 @@ static PyObject *Py_convert_to_string(PyObject *self, PyObject *args, PyObject *
     int status;
 
     if (!PyArg_ParseTuple(args,
-                          "O&O&O&OO&iOO&:convert_to_string",
+                          "O&O&O&OO&iOp:convert_to_string",
                           &convert_path,
                           &path,
                           &convert_trans_affine,
@@ -701,7 +696,6 @@ static PyObject *Py_convert_to_string(PyObject *self, PyObject *args, PyObject *
                           &sketch,
                           &precision,
                           &codesobj,
-                          &convert_bool,
                           &postfix)) {
         return NULL;
     }
