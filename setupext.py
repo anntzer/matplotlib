@@ -137,28 +137,33 @@ class PkgConfig(object):
     def __init__(self):
         """Determines whether pkg-config exists on this machine."""
         self.pkg_config = None
-        if sys.platform != 'win32':
-            pkg_config = os.environ.get('PKG_CONFIG', 'pkg-config')
-            if shutil.which(pkg_config) is not None:
-                self.pkg_config = pkg_config
-                self.set_pkgconfig_path()
-            else:
-                print("IMPORTANT WARNING:\n"
-                      "    pkg-config is not installed.\n"
-                      "    matplotlib may not be able to find some of its dependencies")
+        pkg_config = os.environ.get('PKG_CONFIG', 'pkg-config')
+        if shutil.which(pkg_config) is not None:
+            self.pkg_config = pkg_config
+            self.set_pkgconfig_path()
+        elif sys.platform != 'win32':
+            print("IMPORTANT WARNING:\n"
+                  "    pkg-config is not installed.\n"
+                  "    Matplotlib may be unable to find some dependencies.")
 
     def set_pkgconfig_path(self):
-        pkgconfig_path = sysconfig.get_config_var('LIBDIR')
-        if pkgconfig_path is None:
+        if os.name == 'posix':
+            pkgconfig_path = sysconfig.get_config_var('LIBDIR')
+            if pkgconfig_path is None:
+                return
+            pkgconfig_path = os.path.join(pkgconfig_path, 'pkgconfig')
+            if not os.path.isdir(pkgconfig_path):
+                return
+        elif os.name == 'nt':
+            # conda packages put their pkg-config files in various places,
+            # including ${sys.prefix}/Library/{lib,share}/pkgconfig.
+            pkgconfig_path = os.pathsep.join(
+                map(str, pathlib.Path(sys.prefix).glob('**/pkgconfig')))
+        else:
             return
-
-        pkgconfig_path = os.path.join(pkgconfig_path, 'pkgconfig')
-        if not os.path.isdir(pkgconfig_path):
-            return
-
-        try:
-            os.environ['PKG_CONFIG_PATH'] += ':' + pkgconfig_path
-        except KeyError:
+        if 'PKG_CONFIG_PATH' in os.environ:
+            os.environ['PKG_CONFIG_PATH'] += os.pathsep + pkgconfig_path
+        else:
             os.environ['PKG_CONFIG_PATH'] = pkgconfig_path
 
     def setup_extension(
@@ -175,7 +180,9 @@ class PkgConfig(object):
                     subprocess.check_call(
                         [*cmd, f"--atleast-version={atleast_version}"])
                 flags = shlex.split(subprocess.check_output(
-                    [*cmd, "--cflags", "--libs"], universal_newlines=True))
+                    [*cmd, "--cflags", "--libs",
+                     *(["--msvc-syntax"] if sys.platform == "win32" else [])],
+                    universal_newlines=True))
             except (OSError, subprocess.CalledProcessError):
                 pass
             else:
