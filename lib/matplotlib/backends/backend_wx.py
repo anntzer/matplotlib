@@ -1180,8 +1180,6 @@ class FigureFrameWx(wx.Frame):
 
         self.canvas.SetMinSize((2, 2))
 
-        self.figmgr = FigureManagerWx(self.canvas, num, self)
-
         self.Bind(wx.EVT_CLOSE, self._onClose)
 
     def _get_toolbar(self, statbar):
@@ -1204,6 +1202,16 @@ class FigureFrameWx(wx.Frame):
     def get_canvas(self, fig):
         return FigureCanvasWx(self, -1, fig)
 
+    @cbook.deprecated("3.1", alternative="frame.canvas.manager or "
+                      "FigureManagerWx(frame.canvas, num, frame)")
+    @property
+    def figmgr(self):
+        if self.canvas.manager is None:
+            FigureManagerWx(self.canvas, self.num, self)  # Sets canvas.manager
+        return self.canvas.manager
+
+    @cbook.deprecated("3.1", alternative="frame.canvas.manager or "
+                      "FigureManagerWx(frame.canvas, num, frame)")
     def get_figure_manager(self):
         DEBUG_MSG("get_figure_manager()", 1, self)
         return self.figmgr
@@ -1244,29 +1252,27 @@ class FigureManagerWx(FigureManagerBase):
 
     Attributes
     ----------
-    canvas : `FigureCanvas`
-        a FigureCanvasWx(wx.Panel) instance
+    canvas : FigureCanvasWx
     window : wxFrame
-        a wxFrame instance - wxpython.org/Phoenix/docs/html/Frame.html
-
     """
 
-    def __init__(self, canvas, num, frame):
-        DEBUG_MSG("__init__()", 1, self)
+    def __init__(self, canvas, num, frame=None):
+        if frame is not None:
+            cbook.warn_deprecated(
+                "3.1", name="frame", obj_type="argument",
+                addendum="Do not pass it anymore.")
         FigureManagerBase.__init__(self, canvas, num)
-        self.frame = frame
-        self.window = frame
-
-        self.toolmanager = getattr(frame, "toolmanager", None)
-        self.toolbar = frame.GetToolBar()
+        self.frame = self.window = canvas.GetParent()
+        self.toolmanager = getattr(self.frame, "toolmanager", None)
+        self.toolbar = self.frame.GetToolBar()
 
     def show(self):
-        self.frame.Show()
+        self.window.Show()
         self.canvas.draw()
 
     def destroy(self, *args):
         DEBUG_MSG("destroy()", 1, self)
-        self.frame.Destroy()
+        self.window.Destroy()
         wxapp = wx.GetApp()
         if wxapp:
             wxapp.Yield()
@@ -2066,11 +2072,11 @@ class _BackendWx(_Backend):
     @classmethod
     def new_figure_manager_given_figure(cls, num, figure):
         frame = cls._frame_class(num, figure)
-        figmgr = frame.get_figure_manager()
+        manager = FigureManagerWx(figure.canvas, num)
         if matplotlib.is_interactive():
-            figmgr.frame.Show()
+            frame.Show()
             figure.canvas.draw_idle()
-        return figmgr
+        return manager
 
     @staticmethod
     def mainloop():
