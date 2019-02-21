@@ -643,12 +643,20 @@ class Ticker:
     """
 
     def __init__(self):
+        self._axis = None
         self._locator = None
         self._formatter = None
+        self._locator_is_default = True
+        self._formatter_is_default = True
+
+    # The machinery below allows TickHelpers to be shared over multiple Axis.
 
     @property
     def locator(self):
-        return self._locator
+        locator = self._locator
+        if locator is not None:
+            locator.set_axis(self._axis)
+        return locator
 
     @locator.setter
     def locator(self, locator):
@@ -661,7 +669,10 @@ class Ticker:
 
     @property
     def formatter(self):
-        return self._formatter
+        formatter = self._formatter
+        if formatter is not None:
+            formatter.set_axis(self._axis)
+        return formatter
 
     @formatter.setter
     def formatter(self, formatter):
@@ -671,6 +682,10 @@ class Ticker:
                 "matplotlib.ticker.Formatter is deprecated since %(since)s "
                 "and support for them will be removed %(removal)s.")
         self._formatter = formatter
+
+    @locator.setter
+    def locator(self, locator):
+        self._locator = locator
 
 
 class _LazyTickList:
@@ -759,8 +774,8 @@ class Axis(martist.Artist):
         self.isDefault_label = True
 
         self.axes = axes
-        self.major = Ticker()
-        self.minor = Ticker()
+        self._major = Ticker()
+        self._minor = Ticker()
         self.callbacks = cbook.CallbackRegistry()
 
         self._autolabelpos = True
@@ -778,6 +793,60 @@ class Axis(martist.Artist):
 
         self.cla()
         self._set_scale('linear')
+
+    # The machinery below allows TickHelpers to be shared over multiple Axis.
+
+    @property
+    def major(self):
+        major = self._major
+        major._axis = self
+        return major
+
+    @major.setter
+    def major(self, major):
+        self._major = major
+
+    @property
+    def minor(self):
+        minor = self._minor
+        minor._axis = self
+        return minor
+
+    @minor.setter
+    def minor(self, minor):
+        self._minor = minor
+
+    @property
+    def isDefault_majloc(self):
+        return self.major._locator_is_default
+
+    @isDefault_majloc.setter
+    def isDefault_majloc(self, value):
+        self.major._locator_is_default = value
+
+    @property
+    def isDefault_majfmt(self):
+        return self.major._formatter_is_default
+
+    @isDefault_majfmt.setter
+    def isDefault_majfmt(self, value):
+        self.major._formatter_is_default = value
+
+    @property
+    def isDefault_minloc(self):
+        return self.minor._locator_is_default
+
+    @isDefault_minloc.setter
+    def isDefault_minloc(self, value):
+        self.minor._locator_is_default = value
+
+    @property
+    def isDefault_minfmt(self):
+        return self.minor._formatter_is_default
+
+    @isDefault_minfmt.setter
+    def isDefault_minfmt(self, value):
+        self.minor._formatter_is_default = value
 
     # During initialization, Axis objects often create ticks that are later
     # unused; this turns out to be a very slow step.  Instead, use a custom
