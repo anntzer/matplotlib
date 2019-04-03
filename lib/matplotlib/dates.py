@@ -1463,10 +1463,6 @@ class AutoDateLocator(DateLocator):
                     'documentation for details.')
 
         locator.set_axis(self.axis)
-
-        if self.axis is not None:
-            locator.set_view_interval(*self.axis.get_view_interval())
-            locator.set_data_interval(*self.axis.get_data_interval())
         return locator
 
 
@@ -1725,10 +1721,12 @@ class MicrosecondLocator(DateLocator):
         self._wrapped_locator.set_axis(axis)
         return DateLocator.set_axis(self, axis)
 
+    @cbook.deprecated("3.3", alternative=".axis.set_view_interval")
     def set_view_interval(self, vmin, vmax):
         self._wrapped_locator.set_view_interval(vmin, vmax)
         return DateLocator.set_view_interval(self, vmin, vmax)
 
+    @cbook.deprecated("3.3", alternative=".axis.set_data_interval")
     def set_data_interval(self, vmin, vmax):
         self._wrapped_locator.set_data_interval(vmin, vmax)
         return DateLocator.set_data_interval(self, vmin, vmax)

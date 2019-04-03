@@ -211,3 +211,10 @@ The *clear_temp* parameter and attribute of `.FileMovieWriter` is
 deprecated.  In the future, files placed in a temporary directory (using
 ``frame_prefix=None``, the default) will be cleared; files placed elsewhere
 will not.
+
+Locator and Formatter wrapper methods
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The ``set_view_interval``, ``set_data_interval`` and ``set_bounds`` methods of
+`.Locator`\s and `.Formatter`\s (and their common base class, TickHelper) are
+deprecated.  Directly manipulate the view and data intervals on the underlying
+axis instead.

@@ -998,7 +998,8 @@ class PathCollection(_CollectionWithSizes):
             raise ValueError("Valid values for `prop` are 'colors' or "
                              f"'sizes'. You supplied '{prop}' instead.")
 
-        fmt.set_bounds(func(u).min(), func(u).max())
+        fmt.axis.set_view_interval(func(u).min(), func(u).max())
+        fmt.axis.set_data_interval(func(u).min(), func(u).max())
         if num == "auto":
             num = 9
             if len(u) <= num:
