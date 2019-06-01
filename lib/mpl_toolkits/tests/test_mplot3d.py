@@ -40,10 +40,7 @@ def test_bar3d_shaded():
 
     views = [(-60, 30), (30, 30), (30, -30), (120, -30)]
     fig = plt.figure(figsize=plt.figaspect(1 / len(views)))
-    axs = fig.subplots(
-        1, len(views),
-        subplot_kw=dict(projection='3d')
-    )
+    axs = fig.subplots(1, len(views), subplot_kw=dict(projection='3d'))
     for ax, (azim, elev) in zip(axs, views):
         ax.bar3d(x2d, y2d, x2d * 0, 1, 1, z, shade=True)
         ax.view_init(azim=azim, elev=elev)
@@ -612,7 +609,7 @@ def test_world():
 @image_comparison(['proj3d_lines_dists.png'],
                   remove_text=True, style='default')
 def test_lines_dists():
-    fig, ax = plt.subplots(figsize=(4, 6), subplot_kw=dict(aspect='equal'))
+    ax = plt.figure(figsize=(4, 6)).add_subplot(aspect='equal')
 
     xs = (0, 30)
     ys = (20, 150)
@@ -634,7 +631,7 @@ def test_lines_dists():
 
 
 def test_autoscale():
-    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+    ax = plt.figure().add_subplot(projection="3d")
     ax.margins(x=0, y=.1, z=.2)
     ax.plot([0, 1], [0, 1], [0, 1])
     assert ax.get_w_lims() == (0, 1, -.1, 1.1, -.2, 1.2)
@@ -671,7 +668,7 @@ def test_invalid_axes_limits(setter, side, value):
 class TestVoxels:
     @image_comparison(['voxels-simple.png'], remove_text=True)
     def test_simple(self):
-        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+        ax = plt.figure().add_subplot(projection="3d")
 
         x, y, z = np.indices((5, 4, 3))
         voxels = (x == y) | (y == z)
@@ -680,7 +677,7 @@ class TestVoxels:
     @image_comparison(['voxels-edge-style.png'],
                       remove_text=True, style='default')
     def test_edge_style(self):
-        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+        ax = plt.figure().add_subplot(projection="3d")
 
         x, y, z = np.indices((5, 5, 4))
         voxels = ((x - 2)**2 + (y - 2)**2 + (z-1.5)**2) < 2.2**2
@@ -692,7 +689,7 @@ class TestVoxels:
     @image_comparison(['voxels-named-colors.png'], remove_text=True)
     def test_named_colors(self):
         """Test with colors set to a 3d object array of strings."""
-        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+        ax = plt.figure().add_subplot(projection="3d")
 
         x, y, z = np.indices((10, 10, 10))
         voxels = (x == y) | (y == z)
@@ -705,7 +702,7 @@ class TestVoxels:
     @image_comparison(['voxels-rgb-data.png'], remove_text=True)
     def test_rgb_data(self):
         """Test with colors set to a 4d float array of rgb data."""
-        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+        ax = plt.figure().add_subplot(projection="3d")
 
         x, y, z = np.indices((10, 10, 10))
         voxels = (x == y) | (y == z)
@@ -717,7 +714,7 @@ class TestVoxels:
 
     @image_comparison(['voxels-alpha.png'], remove_text=True)
     def test_alpha(self):
-        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+        ax = plt.figure().add_subplot(projection="3d")
 
         x, y, z = np.indices((10, 10, 10))
         v1 = x == y
@@ -735,7 +732,7 @@ class TestVoxels:
 
     @image_comparison(['voxels-xyz.png'], tol=0.01)
     def test_xyz(self):
-        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+        ax = plt.figure().add_subplot(projection="3d")
 
         def midpoints(x):
             sl = ()
@@ -770,7 +767,7 @@ class TestVoxels:
         x, y, z = np.indices((3, 4, 5))
         filled = np.ones((2, 3, 4))
 
-        fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+        ax = plt.figure().add_subplot(projection="3d")
 
         # all the valid calling conventions
         for kw in (dict(), dict(edgecolor='k')):
@@ -808,7 +805,7 @@ def test_line3d_set_get_data_3d():
 def test_inverted_cla():
     # Github PR #5450. Setting autoscale should reset
     # axes to be non-inverted.
-    fig, ax = plt.subplots(subplot_kw={"projection": "3d"})
+    ax = plt.figure().add_subplot(projection="3d")
     # 1. test that a new axis is not inverted per default
     assert not ax.xaxis_inverted()
     assert not ax.yaxis_inverted()

@@ -23,7 +23,8 @@ with cbook.get_sample_data('jacksboro_fault_dem.npz') as file, \
 region = np.s_[5:50, 5:50]
 x, y, z = x[region], y[region], z[region]
 
-fig, ax = plt.subplots(subplot_kw=dict(projection='3d'))
+fig = plt.figure()
+ax = fig.add_subplot(projection='3d')
 
 ls = LightSource(270, 45)
 # To use a custom hillshading mode, override the built-in shading and pass

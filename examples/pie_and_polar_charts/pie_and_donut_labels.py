@@ -33,7 +33,7 @@ as well as with :meth:`annotations <matplotlib.axes.Axes.annotate>`.
 import numpy as np
 import matplotlib.pyplot as plt
 
-fig, ax = plt.subplots(figsize=(6, 3), subplot_kw=dict(aspect="equal"))
+ax = plt.figure(figsize=(6, 3)).add_subplot(aspect="equal")
 
 recipe = ["375 g flour",
           "75 g sugar",
@@ -88,7 +88,7 @@ plt.show()
 #   determined parameters.
 
 
-fig, ax = plt.subplots(figsize=(6, 3), subplot_kw=dict(aspect="equal"))
+ax = plt.figure(figsize=(6, 3)).add_subplot(aspect="equal")
 
 recipe = ["225 g flour",
           "90 g sugar",

@@ -18,7 +18,7 @@ ells = [Ellipse(xy=np.random.rand(2) * 10,
                 angle=np.random.rand() * 360)
         for i in range(NUM)]
 
-fig, ax = plt.subplots(subplot_kw={'aspect': 'equal'})
+ax = plt.figure().add_subplot(aspect='equal')
 for e in ells:
     ax.add_artist(e)
     e.set_clip_box(ax.bbox)

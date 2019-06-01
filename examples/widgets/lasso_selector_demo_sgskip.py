@@ -82,8 +82,8 @@ if __name__ == '__main__':
 
     data = np.random.rand(100, 2)
 
-    subplot_kw = dict(xlim=(0, 1), ylim=(0, 1), autoscale_on=False)
-    fig, ax = plt.subplots(subplot_kw=subplot_kw)
+    fig = plt.figure()
+    ax = fig.add_subplot(xlim=(0, 1), ylim=(0, 1), autoscale_on=False)
 
     pts = ax.scatter(data[:, 0], data[:, 1], s=80)
     selector = SelectFromCollection(ax, pts)

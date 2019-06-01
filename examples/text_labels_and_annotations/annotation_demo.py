@@ -109,7 +109,7 @@ ax.set(xlim=(-1, 5), ylim=(-3, 5))
 # The text in the example is placed in the fractional figure coordinate system.
 # Text keyword args like horizontal and vertical alignment are respected.
 
-fig, ax = plt.subplots(subplot_kw=dict(projection='polar'), figsize=(3, 3))
+ax = plt.figure(figsize=(3, 3)).add_subplot(projection='polar')
 r = np.arange(0, 1, 0.001)
 theta = 2*2*np.pi*r
 line, = ax.plot(theta, r)
@@ -131,7 +131,7 @@ ax.annotate('a polar annotation',
 
 el = Ellipse((0, 0), 10, 20, facecolor='r', alpha=0.5)
 
-fig, ax = plt.subplots(subplot_kw=dict(aspect='equal'))
+ax = plt.figure().add_subplot(aspect='equal')
 ax.add_artist(el)
 el.set_clip_box(ax.bbox)
 ax.annotate('the top',
