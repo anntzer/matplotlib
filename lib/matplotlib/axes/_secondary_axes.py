@@ -353,16 +353,11 @@ class SecondaryAxis(_AxesBase):
         ----------
         color : Matplotlib color
         """
-        if self._orientation == 'x':
-            self.tick_params(axis='x', colors=color)
-            self.spines['bottom'].set_color(color)
-            self.spines['top'].set_color(color)
-            self.xaxis.label.set_color(color)
-        else:
-            self.tick_params(axis='y', colors=color)
-            self.spines['left'].set_color(color)
-            self.spines['right'].set_color(color)
-            self.yaxis.label.set_color(color)
+        self.tick_params(colors=color)
+        for spine in self.spines.values():
+            spine.set_color(color)
+        for axis in self._get_axis_list():
+            axis.label.set_color(color)
 
 
 _secax_docstring = '''
