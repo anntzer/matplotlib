@@ -52,3 +52,13 @@ Case-insensitive capstyles and joinstyles
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Please pass capstyles ("miter", "round", "bevel") and joinstyles ("butt",
 "round", "projecting") as lowercase.
+
+Signature of `.LogScale` and `.SymLogScale`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+These classes used to take keyword arguments that depends on the axis
+orientation ("basex" vs "basey", "nonposx" vs "nonposy"); these parameter
+names are now deprecated in favor of "base", "nonpos", etc.  This deprecation
+also affects e.g. ``ax.set_yscale("log", basey=...)`` which must now be
+spelled ``ax.set_yscale("log", base=...)``.  The only place where "basex", etc.
+remain in use is in the helper functions `~.Axes.loglog`, `~.Axes.semilogx`,
+and `~.Axes.semilogy` (because `~.Axes.loglog` takes both "basex" and "basey").

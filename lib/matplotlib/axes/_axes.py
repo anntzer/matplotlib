@@ -1791,16 +1791,13 @@ class Axes(_AxesBase):
         **kwargs
             All parameters supported by `.plot`.
         """
-        dx = {k: kwargs.pop(k) for k in ['basex', 'subsx', 'nonposx']
+        dx = {k[:-1]: kwargs.pop(k) for k in ['basex', 'subsx', 'nonposx']
               if k in kwargs}
-        dy = {k: kwargs.pop(k) for k in ['basey', 'subsy', 'nonposy']
-              if k in kwargs}
-
         self.set_xscale('log', **dx)
+        dy = {k[:-1]: kwargs.pop(k) for k in ['basey', 'subsy', 'nonposy']
+              if k in kwargs}
         self.set_yscale('log', **dy)
-
-        l = self.plot(*args, **kwargs)
-        return l
+        return self.plot(*args, **kwargs)
 
     # @_preprocess_data() # let 'plot' do the unpacking..
     @docstring.dedent_interpd
@@ -1844,12 +1841,10 @@ class Axes(_AxesBase):
         **kwargs
             All parameters supported by `.plot`.
         """
-        d = {k: kwargs.pop(k) for k in ['basex', 'subsx', 'nonposx']
+        d = {k[:-1]: kwargs.pop(k) for k in ['basex', 'subsx', 'nonposx']
              if k in kwargs}
-
         self.set_xscale('log', **d)
-        l = self.plot(*args, **kwargs)
-        return l
+        return self.plot(*args, **kwargs)
 
     # @_preprocess_data() # let 'plot' do the unpacking..
     @docstring.dedent_interpd
@@ -1893,12 +1888,10 @@ class Axes(_AxesBase):
         **kwargs
             All parameters supported by `.plot`.
         """
-        d = {k: kwargs.pop(k) for k in ['basey', 'subsy', 'nonposy']
+        d = {k[:-1]: kwargs.pop(k) for k in ['basey', 'subsy', 'nonposy']
              if k in kwargs}
         self.set_yscale('log', **d)
-        l = self.plot(*args, **kwargs)
-
-        return l
+        return self.plot(*args, **kwargs)
 
     @_preprocess_data(replace_names=["x"], label_namer="x")
     def acorr(self, x, **kwargs):
@@ -2339,11 +2332,11 @@ class Axes(_AxesBase):
         if orientation == 'vertical':
             self._process_unit_info(xdata=x, ydata=height, kwargs=kwargs)
             if log:
-                self.set_yscale('log', nonposy='clip')
+                self.set_yscale('log', nonpos='clip')
         elif orientation == 'horizontal':
             self._process_unit_info(xdata=width, ydata=y, kwargs=kwargs)
             if log:
-                self.set_xscale('log', nonposx='clip')
+                self.set_xscale('log', nonpos='clip')
 
         # lets do some conversions now since some types cannot be
         # subtracted uniformly
@@ -6755,9 +6748,9 @@ optional.
 
             if log:
                 if orientation == 'horizontal':
-                    self.set_xscale('log', nonposx='clip')
+                    self.set_xscale('log', nonpos='clip')
                 else:  # orientation == 'vertical'
-                    self.set_yscale('log', nonposy='clip')
+                    self.set_yscale('log', nonpos='clip')
 
             if align == 'left':
                 x -= 0.5*(bins[1]-bins[0])
