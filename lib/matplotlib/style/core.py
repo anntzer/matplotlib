@@ -12,8 +12,10 @@ Core functions and attributes for the matplotlib style library:
 """
 
 import contextlib
+import importlib
 import logging
 import os
+from pathlib import Path
 import re
 import warnings
 
@@ -148,8 +150,10 @@ def context(style, after_reset=False):
 
 def load_base_library():
     """Load style library defined in this package."""
-    library = read_style_directory(BASE_LIBRARY_PATH)
-    return library
+    return {
+        **read_style_directory(BASE_LIBRARY_PATH),
+        **_read_pystyle_base_directory(),
+    }
 
 
 def iter_user_libraries():
@@ -189,6 +193,27 @@ def read_style_directory(style_dir):
             message = 'In %s: %s' % (path, w.message)
             _log.warning(message)
 
+    return styles
+
+
+def _read_pystyle_base_directory():
+    """
+    Return directory of styles defined in *style_dir* as Python files.
+
+    Because Python style files can execute arbitrary code, this feature is only
+    used internally to load files provided by Matplotlib itself, not
+    user-provided style files.
+
+    A Python style is a Python module that exports a dict named
+    ``__mpl_style__``, from which a `RcParams` is constructed.  This convention
+    may be revisited if this feature ever becomes public.
+    """
+    styles = {}
+    for path in Path(BASE_LIBRARY_PATH).glob("*.py"):
+        spec = importlib.util.spec_from_file_location(path.stem, path)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        styles[path.stem] = mpl.RcParams(module.__mpl_style__)
     return styles
 
 
