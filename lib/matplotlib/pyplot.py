@@ -41,7 +41,6 @@ from matplotlib.figure import Figure, figaspect
 from matplotlib.gridspec import GridSpec
 from matplotlib import rcParams, rcParamsDefault, get_backend, rcParamsOrig
 from matplotlib import rc_context
-from matplotlib.rcsetup import interactive_bk as _interactive_bk
 from matplotlib.artist import getp, get, Artist
 from matplotlib.artist import setp as _setp
 from matplotlib.axes import Axes, Subplot
@@ -230,10 +229,20 @@ def switch_backend(newbackend):
             matplotlib.backends._get_running_interactive_framework()
         if (current_framework and required_framework
                 and current_framework != required_framework):
-            raise ImportError(
-                "Cannot load backend {!r} which requires the {!r} interactive "
-                "framework, as {!r} is currently running".format(
-                    newbackend, required_framework, current_framework))
+            if rcParams["backend_fallback"]:
+                # Force selection of a backend compatible with the current
+                # running interactive framework.
+                try:
+                    rcParams["backend_fallback"] = False  # Don't recurse.
+                    switch_backend(rcsetup._auto_backend_sentinel)
+                    return
+                finally:
+                    rcParams["backend_fallback"] = True
+            else:
+                raise ImportError(
+                    f"Cannot load backend {newbackend!r} which requires the "
+                    f"{required_framework!r} interactive framework, as "
+                    f"{current_framework!r} is currently running")
 
     rcParams['backend'] = rcParamsDefault['backend'] = newbackend
 
@@ -2297,16 +2306,8 @@ def plotfile(fname, cols=(0,), plotfuncs=None,
         fig.autofmt_xdate()
 
 
-# If rcParams['backend_fallback'] is true, and an interactive backend is
-# requested, ignore rcParams['backend'] and force selection of a backend that
-# is compatible with the current running interactive framework.
-if (rcParams["backend_fallback"]
-        and dict.__getitem__(rcParams, "backend") in _interactive_bk
-        and _get_running_interactive_framework()):
-    dict.__setitem__(rcParams, "backend", rcsetup._auto_backend_sentinel)
 # Set up the backend.
 switch_backend(rcParams["backend"])
-
 # Just to be safe.  Interactive mode can be turned on without
 # calling `plt.ion()` so register it again here.
 # This is safe because multiple calls to `install_repl_displayhook`

@@ -123,8 +123,11 @@ def test_interactive_backend(backend):
 @pytest.mark.skipif(os.name == "nt", reason="Cannot send SIGINT on Windows.")
 def test_webagg():
     pytest.importorskip("tornado")
-    proc = subprocess.Popen([sys.executable, "-c", _test_script],
-                            env={**os.environ, "MPLBACKEND": "webagg"})
+    proc = subprocess.Popen(
+        [sys.executable, "-c", _test_script],
+        # Also set DISPLAY to none, to test that we don't fallback from webagg
+        # to some other backend in that case.
+        env={**os.environ, "DISPLAY": "", "MPLBACKEND": "webagg"})
     url = "http://{}:{}".format(
         mpl.rcParams["webagg.address"], mpl.rcParams["webagg.port"])
     timeout = time.perf_counter() + _test_timeout
