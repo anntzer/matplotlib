@@ -1410,30 +1410,6 @@ end"""
         self._images[id(image)] = (image, name, ob)
         return name
 
-    def _unpack(self, im):
-        """
-        Unpack the image object im into height, width, data, alpha,
-        where data and alpha are HxWx3 (RGB) or HxWx1 (grayscale or alpha)
-        arrays, except alpha is None if the image is fully opaque.
-        """
-        h, w = im.shape[:2]
-        im = im[::-1]
-        if im.ndim == 2:
-            return h, w, im, None
-        else:
-            rgb = im[:, :, :3]
-            rgb = np.array(rgb, order='C')
-            # PDF needs a separate alpha image
-            if im.shape[2] == 4:
-                alpha = im[:, :, 3][..., None]
-                if np.all(alpha == 255):
-                    alpha = None
-                else:
-                    alpha = np.array(alpha, order='C')
-            else:
-                alpha = None
-            return h, w, rgb, alpha
-
     def _writePng(self, data):
         """
         Write the image *data* into the pdf file using png
@@ -1455,26 +1431,26 @@ end"""
                 buffer.seek(length, 1)
             buffer.seek(4, 1)   # skip CRC
 
-    def _writeImg(self, data, height, width, grayscale, id, smask=None):
+    def _writeImg(self, data, id, smask=None):
         """
-        Write the image *data* of size *height* x *width*, as grayscale
-        if *grayscale* is true and RGB otherwise, as pdf object *id*
-        and with the soft mask (alpha channel) *smask*, which should be
-        either None or a *height* x *width* x 1 array.
+        Write the image *data*, of shape ``(height, width, 1)`` (grayscale) or
+        ``(height, width, 3)`` (RGB), as pdf object *id* and with the soft mask
+        (alpha channel) *smask*, which should be either None or a ``(height,
+        width, 1)`` array.
         """
+        height, width, colors = data.shape
 
-        obj = {'Type':             Name('XObject'),
-               'Subtype':          Name('Image'),
-               'Width':            width,
-               'Height':           height,
-               'ColorSpace':       Name('DeviceGray' if grayscale
-                                        else 'DeviceRGB'),
+        obj = {'Type': Name('XObject'),
+               'Subtype': Name('Image'),
+               'Width': width,
+               'Height': height,
+               'ColorSpace': Name({1: 'DeviceGray', 3: 'DeviceRGB'}[colors]),
                'BitsPerComponent': 8}
         if smask:
             obj['SMask'] = smask
         if rcParams['pdf.compression']:
             png = {'Predictor': 10,
-                   'Colors':    1 if grayscale else 3,
+                   'Colors':    colors,
                    'Columns':   width}
         else:
             png = None
@@ -1492,14 +1468,32 @@ end"""
 
     def writeImages(self):
         for img, name, ob in self._images.values():
-            height, width, data, adata = self._unpack(img)
-            if adata is not None:
+            img = img[::-1]
+            # Unpack image array *img* into ``(data, alpha)``, which have
+            # shape ``(height, width, 3)`` (RGB) or ``(height, width, 1)``
+            # (grayscale or alpha), except that alpha is None if the image is
+            # fully opaque.
+            if img.ndim == 2:
+                data = img[:, :, None]
+                alpha = None
+            else:
+                data = img[:, :, :3]
+                data = np.array(data, order='C')
+                # PDF needs a separate alpha image.
+                if img.shape[2] == 4:
+                    alpha = img[:, :, 3][..., None]
+                    if np.all(alpha == 255):
+                        alpha = None
+                    else:
+                        alpha = np.array(alpha, order='C')
+                else:
+                    alpha = None
+            if alpha is not None:
                 smaskObject = self.reserveObject("smask")
-                self._writeImg(adata, height, width, True, smaskObject.id)
+                self._writeImg(alpha, smaskObject.id)
             else:
                 smaskObject = None
-            self._writeImg(data, height, width, False,
-                           ob.id, smaskObject)
+            self._writeImg(data, ob.id, smask=smaskObject)
 
     def markerObject(self, path, trans, fill, stroke, lw, joinstyle,
                      capstyle):
