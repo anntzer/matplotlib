@@ -11,6 +11,7 @@ from pathlib import Path
 import urllib.parse
 
 import numpy as np
+import PIL.PngImagePlugin
 
 from matplotlib import rcParams
 import matplotlib.artist as martist
@@ -18,14 +19,11 @@ from matplotlib.backend_bases import FigureCanvasBase
 import matplotlib.colors as mcolors
 import matplotlib.cm as cm
 import matplotlib.cbook as cbook
-
 # For clarity, names from _image are given explicitly in this module:
 import matplotlib._image as _image
-
 # For user convenience, the names from _image are also imported into
 # the image namespace:
 from matplotlib._image import *
-
 from matplotlib.transforms import (Affine2D, BboxBase, Bbox, BboxTransform,
                                    IdentityTransform, TransformedBbox)
 
@@ -642,11 +640,9 @@ class _ImageBase(martist.Artist, cm.ScalarMappable):
 
     def write_png(self, fname):
         """Write the image to png file with fname"""
-        from matplotlib import _png
         im = self.to_rgba(self._A[::-1] if self.origin == 'lower' else self._A,
                           bytes=True, norm=True)
-        with open(fname, "wb") as file:
-            _png.write_png(im, file)
+        PIL.Image.fromarray(im).save(fname, format="png")
 
     def set_data(self, A):
         """
@@ -658,13 +654,8 @@ class _ImageBase(martist.Artist, cm.ScalarMappable):
         ----------
         A : array-like or `PIL.Image.Image`
         """
-        try:
-            from PIL import Image
-        except ImportError:
-            pass
-        else:
-            if isinstance(A, Image.Image):
-                A = pil_to_array(A)  # Needed e.g. to apply png palette.
+        if isinstance(A, PIL.Image.Image):
+            A = pil_to_array(A)  # Needed e.g. to apply png palette.
         self._A = cbook.safe_masked_invalid(A, copy=True)
 
         if (self._A.dtype != np.uint8 and
@@ -1373,15 +1364,6 @@ def imread(fname, format=None):
         - (M, N) for grayscale images.
         - (M, N, 3) for RGB images.
         - (M, N, 4) for RGBA images.
-
-    Notes
-    -----
-    Matplotlib can only read PNGs natively. Further image formats are
-    supported via the optional dependency on Pillow. Note, URL strings
-    are not compatible with Pillow. Check the `Pillow documentation`_
-    for more information.
-
-    .. _Pillow documentation: http://pillow.readthedocs.io/en/latest/
     """
     if format is None:
         if isinstance(fname, str):
@@ -1407,24 +1389,18 @@ def imread(fname, format=None):
             ext = 'png'
     else:
         ext = format
-    if ext != 'png':
-        try:  # Try to load the image with PIL.
-            from PIL import Image
-        except ImportError:
-            raise ValueError('Only know how to handle PNG; with Pillow '
-                             'installed, Matplotlib can handle more images')
-        with Image.open(fname) as image:
-            return pil_to_array(image)
-    from matplotlib import _png
+    img_open = (
+        PIL.PngImagePlugin.PngImageFile if ext == 'png' else PIL.Image.open)
     if isinstance(fname, str):
         parsed = urllib.parse.urlparse(fname)
-        # If fname is a URL, download the data
-        if len(parsed.scheme) > 1:
+        if len(parsed.scheme) > 1:  # Pillow doesn't handle URLs directly.
             from urllib import request
-            fd = BytesIO(request.urlopen(fname).read())
-            return _png.read_png(fd)
-    with cbook.open_file_cm(fname, "rb") as file:
-        return _png.read_png(file)
+            with urllib.request.urlopen(fname) as response:
+                return imread(response, format=ext)
+    with img_open(fname) as image:
+        return (_pil_png_to_float_array(image)
+                if isinstance(image, PIL.PngImagePlugin.PngImageFile) else
+                pil_to_array(image))
 
 
 def imsave(fname, arr, vmin=None, vmax=None, cmap=None, format=None,
@@ -1466,15 +1442,11 @@ def imsave(fname, arr, vmin=None, vmax=None, cmap=None, format=None,
         format, see the documentation of the respective backends for more
         information.
     pil_kwargs : dict, optional
-        If set to a non-None value, always use Pillow to save the figure
-        (regardless of the output format), and pass these keyword arguments to
-        `PIL.Image.save`.
-
-        If the 'pnginfo' key is present, it completely overrides
-        *metadata*, including the default 'Software' key.
+        Keyword arguments passed to `PIL.Image.save`.  If the 'pnginfo' key is
+        present, it completely overrides *metadata*, including the default
+        'Software' key.
     """
     from matplotlib.figure import Figure
-    from matplotlib import _png
     if isinstance(fname, os.PathLike):
         fname = os.fspath(fname)
     if format is None:
@@ -1500,44 +1472,32 @@ def imsave(fname, arr, vmin=None, vmax=None, cmap=None, format=None,
         if origin == "lower":
             arr = arr[::-1]
         rgba = sm.to_rgba(arr, bytes=True)
-        if format == "png" and pil_kwargs is None:
-            with cbook.open_file_cm(fname, "wb") as file:
-                _png.write_png(rgba, file, dpi=dpi, metadata=metadata)
-        else:
-            try:
-                from PIL import Image
-                from PIL.PngImagePlugin import PngInfo
-            except ImportError as exc:
-                if pil_kwargs is not None:
-                    raise ImportError("Setting 'pil_kwargs' requires Pillow")
-                else:
-                    raise ImportError(f"Saving to {format} requires Pillow")
-            if pil_kwargs is None:
-                pil_kwargs = {}
-            pil_shape = (rgba.shape[1], rgba.shape[0])
-            image = Image.frombuffer(
-                "RGBA", pil_shape, rgba, "raw", "RGBA", 0, 1)
-            if format == "png" and metadata is not None:
-                # cf. backend_agg's print_png.
-                pnginfo = PngInfo()
-                for k, v in metadata.items():
-                    pnginfo.add_text(k, v)
-                pil_kwargs["pnginfo"] = pnginfo
-            if format in ["jpg", "jpeg"]:
-                format = "jpeg"  # Pillow doesn't recognize "jpg".
-                color = tuple(
-                    int(x * 255)
-                    for x in mcolors.to_rgb(rcParams["savefig.facecolor"]))
-                background = Image.new("RGB", pil_shape, color)
-                background.paste(image, image)
-                image = background
-            pil_kwargs.setdefault("format", format)
-            pil_kwargs.setdefault("dpi", (dpi, dpi))
-            image.save(fname, **pil_kwargs)
+        if pil_kwargs is None:
+            pil_kwargs = {}
+        pil_shape = (rgba.shape[1], rgba.shape[0])
+        image = PIL.Image.frombuffer(
+            "RGBA", pil_shape, rgba, "raw", "RGBA", 0, 1)
+        if format == "png" and metadata is not None:
+            # cf. backend_agg's print_png.
+            pnginfo = PIL.PngImagePlugin.PngInfo()
+            for k, v in metadata.items():
+                pnginfo.add_text(k, v)
+            pil_kwargs["pnginfo"] = pnginfo
+        if format in ["jpg", "jpeg"]:
+            format = "jpeg"  # Pillow doesn't recognize "jpg".
+            color = tuple(
+                int(x * 255)
+                for x in mcolors.to_rgb(rcParams["savefig.facecolor"]))
+            background = PIL.Image.new("RGB", pil_shape, color)
+            background.paste(image, image)
+            image = background
+        pil_kwargs.setdefault("format", format)
+        pil_kwargs.setdefault("dpi", (dpi, dpi))
+        image.save(fname, **pil_kwargs)
 
 
 def pil_to_array(pilImage):
-    """Load a `PIL image`_ and return it as a numpy array.
+    """Load a `PIL image`_ and return it as a numpy int array.
 
     .. _PIL image: https://pillow.readthedocs.io/en/latest/reference/Image.html
 
@@ -1550,7 +1510,6 @@ def pil_to_array(pilImage):
         - (M, N) for grayscale images.
         - (M, N, 3) for RGB images.
         - (M, N, 4) for RGBA images.
-
     """
     if pilImage.mode in ['RGBA', 'RGBX', 'RGB', 'L']:
         # return MxNx4 RGBA, MxNx3 RBA, or MxN luminance array
@@ -1569,6 +1528,36 @@ def pil_to_array(pilImage):
         except ValueError:
             raise RuntimeError('Unknown image mode')
         return np.asarray(pilImage)  # return MxNx4 RGBA array
+
+
+def _pil_png_to_float_array(pil_png):
+    """Convert a PIL `PNGImageFile` to a 0-1 float array."""
+    # Unlike pil_to_array this converts to 0-1 float32s for backcompat with the
+    # old libpng-based loader.
+    # The supported rawmodes are from PIL.PngImagePlugin._MODES.  When
+    # mode == "RGB(A)", the 16-bit raw data has already been coarsened to 8-bit
+    # by Pillow.
+    f32 = np.float32
+    mode = pil_png.mode
+    rawmode = pil_png.png.im_rawmode
+    def asf32(array): return np.asarray(array, np.float32)
+    def error(): raise ValueError(f"Unknown PIL rawmode: {rawmode}")
+    return (
+        # Grayscale.
+        asf32(pil_png) if rawmode == "1" else
+        asf32(pil_png) / f32(2**2 - 1) if rawmode == "L;2" else
+        asf32(pil_png) / f32(2**4 - 1) if rawmode == "L;4" else
+        asf32(pil_png) / f32(2**8 - 1) if rawmode == "L" else
+        asf32(pil_png) / f32(2**16 - 1) if rawmode == "I;16B" else
+        # RGB.
+        asf32(pil_png) / f32(2**8 - 1) if mode == "RGB" else
+        # Palette.
+        asf32(pil_png.convert("RGBA")) / f32(255) if mode == "P" else
+        # Grayscale + alpha.
+        asf32(pil_png.convert("RGBA")) / f32(255) if mode == "LA" else
+        # RGBA.
+        asf32(pil_png) / f32(2**8 - 1) if mode == "RGBA" else
+        error())
 
 
 def thumbnail(infile, thumbfile, scale=0.1, interpolation='bilinear',

@@ -1,0 +1,5 @@
+Matplotlib now uses Pillow to save and read pngs
+````````````````````````````````````````````````
+
+The builtin png encoder and decoder has been removed, and Pillow is now a
+dependency.

@@ -33,15 +33,6 @@ def test_pngsuite():
     plt.gca().set_xlim(0, len(files))
 
 
-def test_imread_png_uint16():
-    from matplotlib import _png
-    with (Path(__file__).parent
-          / 'baseline_images/test_png/uint16.png').open('rb') as file:
-        img = _png.read_png_int(file)
-    assert (img.dtype == np.uint16)
-    assert np.sum(img.flatten()) == 134184960
-
-
 def test_truncated_file(tmpdir):
     d = tmpdir.mkdir('test')
     fname = str(d.join('test.png'))
