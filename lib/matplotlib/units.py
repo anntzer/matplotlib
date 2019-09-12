@@ -78,6 +78,8 @@ class AxisInfo:
     An instance of this class must be returned by
     `ConversionInterface.axisinfo`.
     """
+
+    @cbook._delete_parameter("3.2", "default_limits")
     def __init__(self, majloc=None, minloc=None,
                  majfmt=None, minfmt=None, label=None,
                  default_limits=None):
@@ -92,7 +94,8 @@ class AxisInfo:
             The default axis label.
         default_limits : optional
             The default min and max limits of the axis if no data has
-            been plotted.
+            been plotted.  Deprecated, should now be handled by
+            `.Locator.nonsingular`.
 
         Notes
         -----
@@ -104,7 +107,16 @@ class AxisInfo:
         self.majfmt = majfmt
         self.minfmt = minfmt
         self.label = label
-        self.default_limits = default_limits
+        self._default_limits = default_limits
+
+    @cbook.deprecated("3.2")
+    @property
+    def default_limits(self):
+        return self._default_limits
+
+    @default_limits.setter
+    def default_limits(self, value):
+        self._default_limits = value
 
 
 class ConversionInterface:

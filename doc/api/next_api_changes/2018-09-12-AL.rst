@@ -1,0 +1,9 @@
+Deprecations
+````````````
+
+``Axis.set_default_intervals``, ``Bbox.mutated``, ``Bbox.mutatedx``, ``Bbox.mutatedy``,
+and the *default_limits* parameter and attribute of `.units.AxisInfo` are deprecated.
+
+If you have a unit converter which wishes to set the default axis limits, you may
+set them using the ``nonsingular`` method of the unit's major locator; see the
+documentation for `.Locator.nonsingular` for more info.

@@ -1031,6 +1031,7 @@ class Axis(martist.Artist):
         # axes get updated as well.
         raise NotImplementedError('Derived must override')
 
+    @cbook.deprecated("3.2")
     def set_default_intervals(self):
         """
         Set the default limits for the axis data and view interval if they
@@ -1554,7 +1555,10 @@ class Axis(martist.Artist):
             self.set_label_text(info.label)
             self.isDefault_label = True
 
-        self.set_default_intervals()
+        with cbook._suppress_matplotlib_deprecation_warning():
+            self.set_default_intervals()
+        self.axes._request_autoscale_view(
+            scalex=self.axes._autoscaleXon, scaley=self.axes._autoscaleYon)
 
     def have_units(self):
         return self.converter is not None or self.units is not None
@@ -2172,9 +2176,10 @@ class XAxis(Axis):
         # cast to bool to avoid bad interaction between python 3.8 and np.bool_
         self.axes.set_xlim(sorted((a, b), reverse=bool(inverted)), auto=None)
 
+    @cbook.deprecated("3.2")
+    @cbook._suppress_matplotlib_deprecation_warning()
     def set_default_intervals(self):
         # docstring inherited
-        xmin, xmax = 0., 1.
         dataMutated = self.axes.dataLim.mutatedx()
         viewMutated = self.axes.viewLim.mutatedx()
         if not dataMutated or not viewMutated:
@@ -2184,10 +2189,10 @@ class XAxis(Axis):
                     valmin, valmax = info.default_limits
                     xmin = self.converter.convert(valmin, self.units, self)
                     xmax = self.converter.convert(valmax, self.units, self)
-            if not dataMutated:
-                self.axes.dataLim.intervalx = xmin, xmax
-            if not viewMutated:
-                self.axes.viewLim.intervalx = xmin, xmax
+                    if not dataMutated:
+                        self.axes.dataLim.intervalx = xmin, xmax
+                    if not viewMutated:
+                        self.axes.viewLim.intervalx = xmin, xmax
         self.stale = True
 
     def get_tick_space(self):
@@ -2472,6 +2477,8 @@ class YAxis(Axis):
         # cast to bool to avoid bad interaction between python 3.8 and np.bool_
         self.axes.set_ylim(sorted((a, b), reverse=bool(inverted)), auto=None)
 
+    @cbook.deprecated("3.2")
+    @cbook._suppress_matplotlib_deprecation_warning()
     def set_default_intervals(self):
         # docstring inherited
         ymin, ymax = 0., 1.

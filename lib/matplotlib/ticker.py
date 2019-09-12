@@ -1723,6 +1723,8 @@ class Locator(TickHelper):
           default view limits.
         - Otherwise, ``(v0, v1)`` is returned without modification.
         """
+        if not np.isfinite(v0) or not np.isfinite(v1):
+            return 0, 1
         return mtransforms.nonsingular(v0, v1, expander=.05)
 
     def view_limits(self, vmin, vmax):

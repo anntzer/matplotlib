@@ -962,15 +962,18 @@ class Bbox(BboxBase):
             self._points = other.get_points()
             self.invalidate()
 
+    @cbook.deprecated("3.2")
     def mutated(self):
         'Return whether the bbox has changed since init.'
         return self.mutatedx() or self.mutatedy()
 
+    @cbook.deprecated("3.2")
     def mutatedx(self):
         'Return whether the x-limits have changed since init.'
         return (self._points[0, 0] != self._points_orig[0, 0] or
                 self._points[1, 0] != self._points_orig[1, 0])
 
+    @cbook.deprecated("3.2")
     def mutatedy(self):
         'Return whether the y-limits have changed since init.'
         return (self._points[0, 1] != self._points_orig[0, 1] or
