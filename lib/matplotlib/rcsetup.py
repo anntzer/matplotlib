@@ -62,10 +62,7 @@ class ValidateInStrings:
     def __call__(self, s):
         if self.ignorecase:
             s = s.lower()
-        if s in self.valid:
-            return self.valid[s]
-        raise ValueError('Unrecognized %s string %r: valid strings are %s'
-                         % (self.key, s, list(self.valid.values())))
+        return cbook._check_getitem(self.valid, **{self.key: s})
 
 
 def _listify_validator(scalar_validator, allow_stringlist=False, *, doc=None):
@@ -611,9 +608,9 @@ def validate_hinting(s):
             "True or False is deprecated since %(since)s and will be removed "
             "%(removal)s; set it to its synonyms 'auto' or 'none' instead.")
         return s
-    if s.lower() in ('auto', 'native', 'either', 'none'):
-        return s.lower()
-    raise ValueError("hinting should be 'auto', 'native', 'either' or 'none'")
+    s = s.lower()
+    cbook._check_in_list(['auto', 'native', 'either', 'none'], hinting=s)
+    return s
 
 
 validate_pgf_texsystem = ValidateInStrings('pgf.texsystem',
@@ -635,17 +632,10 @@ validate_movie_html_fmt = ValidateInStrings('animation.html',
 
 
 def validate_bbox(s):
-    if isinstance(s, str):
-        s = s.lower()
-        if s == 'tight':
-            return s
-        if s == 'standard':
-            return None
-        raise ValueError("bbox should be 'tight' or 'standard'")
-    elif s is not None:
-        # Backwards compatibility. None is equivalent to 'standard'.
-        raise ValueError("bbox should be 'tight' or 'standard'")
-    return s
+    if s is None:
+        return None  # Backcompat: None is equivalent to 'standard'.
+    return cbook._check_getitem({'tight': 'tight', 'standard': None},
+                                bbox=s.lower())
 
 
 def validate_sketch(s):
