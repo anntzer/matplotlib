@@ -169,3 +169,9 @@ The ``TTFPATH`` and ``AFMPATH`` environment variables
 Support for the (undocumented) ``TTFPATH`` and ``AFMPATH`` environment
 variables is deprecated.  Additional fonts may be registered using
 ``matplotlib.font_manager.fontManager.addfont()``.
+
+Auto-removal of grids by `~.Axes.pcolor` and `~.Axes.pcolormesh`
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+`~.Axes.pcolor` and `~.Axes.pcolormesh` currently remove any visible axes major
+grid.  This behavior is deprecated; please explicitly call ``ax.grid(False)``
+to remove the grid.

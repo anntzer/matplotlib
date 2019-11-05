@@ -5652,6 +5652,14 @@ default: :rc:`scatter.edgecolors`
         C = cbook.safe_masked_invalid(C)
         return X, Y, C
 
+    def _pcolor_grid_deprecation_helper(self):
+        if any(axis._gridOnMajor for axis in self._get_axis_list()):
+            cbook.warn_deprecated(
+                "3.3", message="Auto-removal of grids by pcolor() and "
+                "pcolormesh() is deprecated since %(since)s and will be "
+                "removed %(removal)s; please call grid(False) first.")
+        self.grid(False)
+
     @_preprocess_data()
     @docstring.dedent_interpd
     def pcolor(self, *args, alpha=None, norm=None, cmap=None, vmin=None,
@@ -5852,7 +5860,7 @@ default: :rc:`scatter.edgecolors`
         collection.set_cmap(cmap)
         collection.set_norm(norm)
         collection._scale_norm(norm, vmin, vmax)
-        self.grid(False)
+        self._pcolor_grid_deprecation_helper()
 
         x = X.compressed()
         y = Y.compressed()
@@ -6066,8 +6074,7 @@ default: :rc:`scatter.edgecolors`
         collection.set_cmap(cmap)
         collection.set_norm(norm)
         collection._scale_norm(norm, vmin, vmax)
-
-        self.grid(False)
+        self._pcolor_grid_deprecation_helper()
 
         # Transform from native to data coordinates?
         t = collection._transform
