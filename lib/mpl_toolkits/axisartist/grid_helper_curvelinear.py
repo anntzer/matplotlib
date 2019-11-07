@@ -9,7 +9,8 @@ from matplotlib.path import Path
 from matplotlib.transforms import Affine2D, IdentityTransform
 from .axislines import AxisArtistHelper, GridHelperBase
 from .axis_artist import AxisArtist
-from .grid_finder import GridFinder, _deprecate_factor_none
+from .grid_finder import (
+    GridFinder, _call_locator_with_compat, _deprecate_factor_none)
 
 
 class FixedAxisArtistHelper(AxisArtistHelper.Fixed):
@@ -115,10 +116,10 @@ class FloatingAxisArtistHelper(AxisArtistHelper.Floating):
             lon_min = max(e_min, lon_min)
             lon_max = min(e_max, lon_max)
 
-        lon_levs, lon_n, lon_factor = \
-                  grid_finder.grid_locator1(lon_min, lon_max)
-        lat_levs, lat_n, lat_factor = \
-                  grid_finder.grid_locator2(lat_min, lat_max)
+        lon_levs, lon_n, lon_factor = _call_locator_with_compat(
+            grid_finder.grid_locator1, lon_min, lon_max)
+        lat_levs, lat_n, lat_factor = _call_locator_with_compat(
+            grid_finder.grid_locator2, lat_min, lat_max)
 
         if self.nth_coord == 0:
             xx0 = np.full(self._line_num_points, self.value, type(self.value))

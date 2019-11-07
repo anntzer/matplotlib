@@ -16,6 +16,14 @@ def _deprecate_factor_none(factor):
     return factor
 
 
+def _call_locator_with_compat(locator, vmin, vmax):
+    if hasattr(locator, "tick_values"):
+        locs = locator.tick_values(vmin, vmax)
+        return locs, len(locs), 1
+    else:
+        return locator(vmin, vmax)
+
+
 # extremes finder
 class ExtremeFinderSimple:
     def __init__(self, nx, ny):

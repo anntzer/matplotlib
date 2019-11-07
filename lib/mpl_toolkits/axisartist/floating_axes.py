@@ -17,7 +17,7 @@ from mpl_toolkits.axes_grid1.parasite_axes import host_axes_class_factory
 
 from . import axislines, grid_helper_curvelinear
 from .axis_artist import AxisArtist
-from .grid_finder import ExtremeFinderSimple
+from .grid_finder import ExtremeFinderSimple, _call_locator_with_compat
 
 
 class FloatingAxisArtistHelper(
@@ -235,10 +235,11 @@ class GridHelperCurveLinear(grid_helper_curvelinear.GridHelperCurveLinear):
 
         lon_min, lon_max = sorted(extremes[:2])
         lat_min, lat_max = sorted(extremes[2:])
-        lon_levs, lon_n, lon_factor = \
-                  grid_finder.grid_locator1(lon_min, lon_max)
-        lat_levs, lat_n, lat_factor = \
-                  grid_finder.grid_locator2(lat_min, lat_max)
+        lon_levs, lon_n, lon_factor = _call_locator_with_compat(
+            grid_finder.grid_locator1, lon_min, lon_max)
+        lat_levs, lat_n, lat_factor = _call_locator_with_compat(
+            grid_finder.grid_locator2, lat_min, lat_max)
+
         grid_info["extremes"] = lon_min, lon_max, lat_min, lat_max  # extremes
 
         grid_info["lon_info"] = lon_levs, lon_n, lon_factor

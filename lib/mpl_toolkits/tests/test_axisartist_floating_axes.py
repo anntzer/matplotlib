@@ -1,15 +1,17 @@
 import numpy as np
 
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.projections as mprojections
 import matplotlib.transforms as mtransforms
 from matplotlib.testing.decorators import image_comparison
+import mpl_toolkits
 from mpl_toolkits.axisartist.axislines import Subplot
 from mpl_toolkits.axisartist.floating_axes import (
     FloatingSubplot,
     GridHelperCurveLinear)
-from mpl_toolkits.axisartist.grid_finder import FixedLocator
 from mpl_toolkits.axisartist import angle_helper
+import pytest
 
 
 def test_subplot():
@@ -18,8 +20,12 @@ def test_subplot():
     fig.add_subplot(ax)
 
 
+@pytest.mark.parametrize(
+    "fixed_locator_cls",
+    [mpl_toolkits.axisartist.grid_finder.FixedLocator,
+     mpl.ticker.FixedLocator])
 @image_comparison(['curvelinear3.png'], style='default', tol=0.01)
-def test_curvelinear3():
+def test_curvelinear3(fixed_locator_cls):
     fig = plt.figure(figsize=(5, 5))
 
     tr = (mtransforms.Affine2D().scale(np.pi / 180, 1) +
@@ -28,7 +34,7 @@ def test_curvelinear3():
     grid_locator1 = angle_helper.LocatorDMS(15)
     tick_formatter1 = angle_helper.FormatterDMS()
 
-    grid_locator2 = FixedLocator([2, 4, 6, 8, 10])
+    grid_locator2 = fixed_locator_cls([2, 4, 6, 8, 10])
 
     grid_helper = GridHelperCurveLinear(tr,
                                         extremes=(0, 360, 10, 3),
@@ -42,7 +48,7 @@ def test_curvelinear3():
 
     r_scale = 10
     tr2 = mtransforms.Affine2D().scale(1, 1 / r_scale) + tr
-    grid_locator2 = FixedLocator([30, 60, 90])
+    grid_locator2 = fixed_locator_cls([30, 60, 90])
     grid_helper2 = GridHelperCurveLinear(tr2,
                                          extremes=(0, 360,
                                                    10 * r_scale, 3 * r_scale),
@@ -72,8 +78,12 @@ def test_curvelinear3():
     l.set_clip_path(ax1.patch)
 
 
+@pytest.mark.parametrize(
+    "fixed_locator_cls",
+    [mpl_toolkits.axisartist.grid_finder.FixedLocator,
+     mpl.ticker.FixedLocator])
 @image_comparison(['curvelinear4.png'], style='default', tol=0.015)
-def test_curvelinear4():
+def test_curvelinear4(fixed_locator_cls):
     # Remove this line when this test image is regenerated.
     plt.rcParams['text.kerning_factor'] = 6
 
@@ -85,7 +95,7 @@ def test_curvelinear4():
     grid_locator1 = angle_helper.LocatorDMS(5)
     tick_formatter1 = angle_helper.FormatterDMS()
 
-    grid_locator2 = FixedLocator([2, 4, 6, 8, 10])
+    grid_locator2 = fixed_locator_cls([2, 4, 6, 8, 10])
 
     grid_helper = GridHelperCurveLinear(tr,
                                         extremes=(120, 30, 10, 0),
