@@ -29,3 +29,8 @@ For all locator classes defined in :mod:`mpl_toolkits.axisartist.angle_helper`,
 the ``den`` parameter has been renamed to ``nbins``, and the ``den`` attribute
 deprecated in favor of its (preexisting) synonym ``nbins``, for consistency
 with locator classes defined in :mod:`matplotlib.ticker`.
+
+``set_factor`` method of :mod:`mpl_toolkits.axisartist` locators
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The ``set_factor`` method of :mod:`mpl_toolkits.axisartist` locators (which are
+different from "standard" Matplotlib tick locators) is deprecated.
