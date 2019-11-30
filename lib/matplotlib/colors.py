@@ -72,8 +72,7 @@ from numbers import Number
 import re
 
 import numpy as np
-import matplotlib.cbook as cbook
-from matplotlib import docstring
+from matplotlib import cbook, docstring, scale
 from ._color_data import BASE_COLORS, TABLEAU_COLORS, CSS4_COLORS, XKCD_COLORS
 
 
@@ -1120,67 +1119,41 @@ class DivergingNorm(TwoSlopeNorm):
     ...
 
 
-class LogNorm(Normalize):
-    """Normalize a given value to the 0-1 range on a log scale."""
+def _make_norm_for_scale(name, scale):
+    trf = scale.get_transform()
+    inv_trf = trf.inverted()
 
-    def _check_vmin_vmax(self):
-        if self.vmin > self.vmax:
-            raise ValueError("minvalue must be less than or equal to maxvalue")
-        elif self.vmin <= 0:
-            raise ValueError("minvalue must be positive")
+    class Norm(Normalize):
+        base_scale = scale
 
-    def __call__(self, value, clip=None):
-        if clip is None:
-            clip = self.clip
+        def __call__(self, value, clip=None):  # FIXME: clip handling.
+            self.autoscale_None(value)
+            if self.vmin == self.vmax:
+                return np.full_like(value, 0)
+            t_value = trf.transform(value).reshape(np.shape(value))
+            t_vmin, t_vmax = trf.transform([self.vmin, self.vmax])
+            t_value -= t_vmin
+            t_value /= (t_vmax - t_vmin)
+            return t_value
 
-        result, is_scalar = self.process_value(value)
+        def inverse(self, value):
+            if not self.scaled():
+                raise ValueError("Not invertible until scaled")
+            t_vmin, t_vmax = trf.transform([self.vmin, self.vmax])
+            rescaled = value * (t_vmax - t_vmin)
+            rescaled += t_vmin
+            return inv_trf.transform(rescaled).reshape(np.shape(value))
 
-        result = np.ma.masked_less_equal(result, 0, copy=False)
+    Norm.__name__ = name
+    return Norm
 
-        self.autoscale_None(result)
-        self._check_vmin_vmax()
-        vmin, vmax = self.vmin, self.vmax
-        if vmin == vmax:
-            result.fill(0)
-        else:
-            if clip:
-                mask = np.ma.getmask(result)
-                result = np.ma.array(np.clip(result.filled(vmax), vmin, vmax),
-                                     mask=mask)
-            # in-place equivalent of above can be much faster
-            resdat = result.data
-            mask = result.mask
-            if mask is np.ma.nomask:
-                mask = (resdat <= 0)
-            else:
-                mask |= resdat <= 0
-            np.copyto(resdat, 1, where=mask)
-            np.log(resdat, resdat)
-            resdat -= np.log(vmin)
-            resdat /= (np.log(vmax) - np.log(vmin))
-            result = np.ma.array(resdat, mask=mask, copy=False)
-        if is_scalar:
-            result = result[0]
-        return result
 
-    def inverse(self, value):
-        if not self.scaled():
-            raise ValueError("Not invertible until scaled")
-        self._check_vmin_vmax()
-        vmin, vmax = self.vmin, self.vmax
-
-        if np.iterable(value):
-            val = np.ma.asarray(value)
-            return vmin * np.ma.power((vmax / vmin), val)
-        else:
-            return vmin * pow((vmax / vmin), value)
-
+class LogNorm(
+        _make_norm_for_scale("LogNorm", scale.LogScale(None, nonpos="mask"))):
     def autoscale(self, A):
-        # docstring inherited.
         super().autoscale(np.ma.masked_less_equal(A, 0, copy=False))
 
     def autoscale_None(self, A):
-        # docstring inherited.
         super().autoscale_None(np.ma.masked_less_equal(A, 0, copy=False))
 
 
