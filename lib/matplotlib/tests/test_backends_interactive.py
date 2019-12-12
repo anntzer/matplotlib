@@ -88,6 +88,7 @@ if backend.endswith("agg") and not backend.startswith(("gtk3", "web")):
         assert_equal(
             type(fig.canvas).__module__,
             "matplotlib.backends.backend_{}".format(alt_backend))
+        plt.close("all")
 
     if importlib.util.find_spec("cairocffi"):
         check_alt_backend(backend[:-3] + "cairo")

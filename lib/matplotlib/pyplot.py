@@ -190,7 +190,6 @@ def switch_backend(newbackend):
     newbackend : str
         The name of the backend to use.
     """
-    close("all")
 
     if newbackend is rcsetup._auto_backend_sentinel:
         # Don't try to fallback on the cairo-based backends as they each have

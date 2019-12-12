@@ -2563,8 +2563,8 @@ class FigureManagerBase:
         # This should be overridden in GUI backends.
         if cbook._get_running_interactive_framework() != "headless":
             raise NonGuiException(
-                f"Matplotlib is currently using {get_backend()}, which is "
-                f"a non-GUI backend, so cannot show the figure.")
+                f"{type(self.canvas).__name__} is non-interactive, and thus "
+                f"cannot be shown")
 
     def destroy(self):
         pass
