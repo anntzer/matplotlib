@@ -1,5 +1,5 @@
 """
-Text layouting utilities.
+Low-level text helper utilities.
 """
 
 from .ft2font import KERNING_DEFAULT, LOAD_NO_HINTING

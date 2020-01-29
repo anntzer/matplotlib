@@ -18,8 +18,7 @@ import time
 import numpy as np
 
 import matplotlib as mpl
-from matplotlib import cbook, _path
-from matplotlib import _text_layout
+from matplotlib import cbook, _path, _text_helpers
 from matplotlib.backend_bases import (
     _Backend, _check_savefig_extra_args, FigureCanvasBase, FigureManagerBase,
     GraphicsContextBase, RendererBase)
@@ -581,7 +580,7 @@ grestore
 
             thetext = '\n'.join(
                 '%f 0 m /%s glyphshow' % (x, font.get_glyph_name(glyph_idx))
-                for glyph_idx, x in _text_layout.layout(s, font))
+                for glyph_idx, x in _text_helpers.layout(s, font))
             self._pswriter.write(f"""\
 gsave
 {x:f} {y:f} translate

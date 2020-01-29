@@ -23,7 +23,7 @@ import numpy as np
 from PIL import Image
 
 import matplotlib as mpl
-from matplotlib import _text_layout, cbook
+from matplotlib import _text_helpers, cbook
 from matplotlib._pylab_helpers import Gcf
 from matplotlib.backend_bases import (
     _Backend, _check_savefig_extra_args, FigureCanvasBase, FigureManagerBase,
@@ -2217,7 +2217,7 @@ class RendererPdf(_backend_pdf_ps.RendererPDFPSBase):
             prev_was_singlebyte = False
             for char, (glyph_idx, glyph_x) in zip(
                     s,
-                    _text_layout.layout(s, font, kern_mode=KERNING_UNFITTED)):
+                    _text_helpers.layout(s, font, kern_mode=KERNING_UNFITTED)):
                 if ord(char) <= 255:
                     if prev_was_singlebyte:
                         singlebyte_chunks[-1][1].append(char)

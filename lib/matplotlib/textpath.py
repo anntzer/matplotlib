@@ -5,7 +5,7 @@ import urllib.parse
 
 import numpy as np
 
-from matplotlib import _text_layout, dviread, font_manager, rcParams
+from matplotlib import _text_helpers, dviread, font_manager, rcParams
 from matplotlib.font_manager import FontProperties, get_font
 from matplotlib.ft2font import LOAD_NO_HINTING, LOAD_TARGET_LIGHT
 from matplotlib.mathtext import MathTextParser
@@ -158,7 +158,7 @@ class TextToPath:
 
         xpositions = []
         glyph_ids = []
-        for char, (_, x) in zip(s, _text_layout.layout(s, font)):
+        for char, (_, x) in zip(s, _text_helpers.layout(s, font)):
             char_id = self._get_char_id(font, ord(char))
             glyph_ids.append(char_id)
             xpositions.append(x)
