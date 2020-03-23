@@ -20,7 +20,8 @@ import matplotlib as mpl
 from matplotlib.backend_bases import (
     _Backend, _check_savefig_extra_args, FigureCanvasBase, FigureManagerBase,
     GraphicsContextBase, MouseButton, NavigationToolbar2, RendererBase,
-    StatusbarBase, TimerBase, ToolContainerBase, cursors)
+    StatusbarBase, TimerBase, ToolContainerBase, cursors,
+    CloseEvent, KeyEvent, LocationEvent, MouseEvent, ResizeEvent)
 
 from matplotlib import _api, cbook, backend_tools
 from matplotlib._pylab_helpers import Gcf
@@ -527,8 +528,8 @@ class _FigureCanvasWxBase(FigureCanvasBase, wx.Panel):
         self.Bind(wx.EVT_RIGHT_UP, self._onMouseButton)
         self.Bind(wx.EVT_MOUSEWHEEL, self._onMouseWheel)
         self.Bind(wx.EVT_MOTION, self._onMotion)
-        self.Bind(wx.EVT_LEAVE_WINDOW, self._onLeave)
         self.Bind(wx.EVT_ENTER_WINDOW, self._onEnter)
+        self.Bind(wx.EVT_LEAVE_WINDOW, self._onLeave)
 
         self.Bind(wx.EVT_MOUSE_CAPTURE_CHANGED, self._onCaptureLost)
         self.Bind(wx.EVT_MOUSE_CAPTURE_LOST, self._onCaptureLost)
@@ -701,7 +702,7 @@ class _FigureCanvasWxBase(FigureCanvasBase, wx.Panel):
         # so no need to do anything here except to make sure
         # the whole background is repainted.
         self.Refresh(eraseBackground=False)
-        FigureCanvasBase.resize_event(self)
+        ResizeEvent("resize_event", self)._process()
 
     def _get_key(self, event):
 
@@ -725,17 +726,32 @@ class _FigureCanvasWxBase(FigureCanvasBase, wx.Panel):
 
         return key
 
+    def _mpl_coords(self, pos=None):
+        """
+        Convert a wx position, defaulting to the current cursor position, to
+        Matplotlib coordinates.
+        """
+        if pos is None:
+            pos = wx.GetMouseState()
+            x, y = self.ScreenToClient(pos.X, pos.Y)
+        else:
+            x, y = pos.X, pos.Y
+        # flip y so y=0 is bottom of canvas
+        return x, self.figure.bbox.height - y
+
     def _onKeyDown(self, event):
         """Capture key press."""
-        key = self._get_key(event)
-        FigureCanvasBase.key_press_event(self, key, guiEvent=event)
+        KeyEvent("key_press_event", self,
+                 self._get_key(event), *self._mpl_coords(),
+                 guiEvent=event)._process()
         if self:
             event.Skip()
 
     def _onKeyUp(self, event):
         """Release key."""
-        key = self._get_key(event)
-        FigureCanvasBase.key_release_event(self, key, guiEvent=event)
+        KeyEvent("key_release_event", self,
+                 self._get_key(event), *self._mpl_coords(),
+                 guiEvent=event)._process()
         if self:
             event.Skip()
 
@@ -754,8 +770,7 @@ class _FigureCanvasWxBase(FigureCanvasBase, wx.Panel):
         """Start measuring on an axis."""
         event.Skip()
         self._set_capture(event.ButtonDown() or event.ButtonDClick())
-        x = event.X
-        y = self.figure.bbox.height - event.Y
+        x, y = self._mpl_coords(event)
         button_map = {
             wx.MOUSE_BTN_LEFT: MouseButton.LEFT,
             wx.MOUSE_BTN_MIDDLE: MouseButton.MIDDLE,
@@ -764,18 +779,18 @@ class _FigureCanvasWxBase(FigureCanvasBase, wx.Panel):
         button = event.GetButton()
         button = button_map.get(button, button)
         if event.ButtonDown():
-            self.button_press_event(x, y, button, guiEvent=event)
+            MouseEvent("button_press_event", self,
+                       x, y, button, guiEvent=event)._process()
         elif event.ButtonDClick():
-            self.button_press_event(x, y, button, dblclick=True,
-                                    guiEvent=event)
+            MouseEvent("button_press_event", self,
+                       x, y, button, dblclick=True, guiEvent=event)._process()
         elif event.ButtonUp():
-            self.button_release_event(x, y, button, guiEvent=event)
+            MouseEvent("button_release_event", self,
+                       x, y, button, guiEvent=event)._process()
 
     def _onMouseWheel(self, event):
         """Translate mouse wheel events into matplotlib events"""
-        # Determine mouse location
-        x = event.GetX()
-        y = self.figure.bbox.height - event.GetY()
+        x, y = self._mpl_coords(event)
         # Convert delta/rotation/rate into a floating point step size
         step = event.LinesPerAction * event.WheelRotation / event.WheelDelta
         # Done handling event
@@ -789,26 +804,29 @@ class _FigureCanvasWxBase(FigureCanvasBase, wx.Panel):
                 return  # Return without processing event
             else:
                 self._skipwheelevent = True
-        FigureCanvasBase.scroll_event(self, x, y, step, guiEvent=event)
+        MouseEvent("scroll_event", self,
+                   x, y, step=step, guiEvent=event)._process()
 
     def _onMotion(self, event):
         """Start measuring on an axis."""
-        x = event.GetX()
-        y = self.figure.bbox.height - event.GetY()
         event.Skip()
-        FigureCanvasBase.motion_notify_event(self, x, y, guiEvent=event)
+        MouseEvent("motion_notify_event", self,
+                   *self._mpl_coords(event),
+                   guiEvent=event)._process()
+
+    def _onEnter(self, event):
+        """Mouse has entered the window."""
+        event.Skip()
+        LocationEvent("figure_enter_event", self,
+                      *self._mpl_coords(event),
+                      guiEvent=event)._process()
 
     def _onLeave(self, event):
         """Mouse has left the window."""
         event.Skip()
-        FigureCanvasBase.leave_notify_event(self, guiEvent=event)
-
-    def _onEnter(self, event):
-        """Mouse has entered the window."""
-        x = event.GetX()
-        y = self.figure.bbox.height - event.GetY()
-        event.Skip()
-        FigureCanvasBase.enter_notify_event(self, guiEvent=event, xy=(x, y))
+        LocationEvent("figure_leave_event", self,
+                      *self._mpl_coords(event),
+                      guiEvent=event)._process()
 
 
 class FigureCanvasWx(_FigureCanvasWxBase):
@@ -964,7 +982,7 @@ class FigureFrameWx(wx.Frame):
 
     def _onClose(self, event):
         _log.debug("%s - onClose()", type(self))
-        self.canvas.close_event()
+        CloseEvent("close_event", self.canvas)._process()
         self.canvas.stop_event_loop()
         Gcf.destroy(self)
         if self:

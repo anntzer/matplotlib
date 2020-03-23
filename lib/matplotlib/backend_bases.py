@@ -1244,10 +1244,15 @@ class Event:
     guiEvent
         The GUI event that triggered the Matplotlib event.
     """
+
     def __init__(self, name, canvas, guiEvent=None):
         self.name = name
         self.canvas = canvas
         self.guiEvent = guiEvent
+
+    def _process(self):
+        """Generate an event with name ``self.name`` on ``self.canvas``."""
+        self.canvas.callbacks.process(self.name, self)
 
 
 class DrawEvent(Event):
@@ -1291,13 +1296,27 @@ class ResizeEvent(Event):
     height : int
         Height of the canvas in pixels.
     """
+
     def __init__(self, name, canvas):
         super().__init__(name, canvas)
         self.width, self.height = canvas.get_width_height()
 
+    def _process(self):
+        super()._process()
+        self.canvas.draw_idle()
+
 
 class CloseEvent(Event):
     """An event triggered by a figure being closed."""
+
+    def _process(self):
+        try:
+            super()._process()
+        except (AttributeError, TypeError):
+            pass
+            # Suppress AttributeError/TypeError that occur when the python
+            # session is being killed.  It may be that a better solution would
+            # be a mechanism to disconnect all callbacks upon shutdown.
 
 
 class LocationEvent(Event):
@@ -1324,7 +1343,7 @@ class LocationEvent(Event):
         y data coordinate of the mouse.
     """
 
-    lastevent = None  # the last event that was triggered before this one
+    lastevent = None  # The last event processed so far.
 
     def __init__(self, name, canvas, x, y, guiEvent=None):
         """
@@ -1341,7 +1360,6 @@ class LocationEvent(Event):
 
         if x is None or y is None:
             # cannot check if event was in axes if no (x, y) info
-            self._update_enter_leave()
             return
 
         if self.canvas.mouse_grabber is None:
@@ -1359,33 +1377,21 @@ class LocationEvent(Event):
                 self.xdata = xdata
                 self.ydata = ydata
 
-        self._update_enter_leave()
-
-    def _update_enter_leave(self):
-        """Process the figure/axes enter leave events."""
-        if LocationEvent.lastevent is not None:
-            last = LocationEvent.lastevent
-            if last.inaxes != self.inaxes:
-                # process axes enter/leave events
+    def _process(self):
+        last = LocationEvent.lastevent
+        last_axes = last.inaxes if last is not None else None
+        if last_axes != self.inaxes:
+            if last_axes is not None:
                 try:
-                    if last.inaxes is not None:
-                        last.canvas.callbacks.process('axes_leave_event', last)
+                    last.canvas.callbacks.process("axes_leave_event", last)
                 except Exception:
+                    # The last canvas may already have been torn down.
                     pass
-                    # See ticket 2901582.
-                    # I think this is a valid exception to the rule
-                    # against catching all exceptions; if anything goes
-                    # wrong, we simply want to move on and process the
-                    # current event.
-                if self.inaxes is not None:
-                    self.canvas.callbacks.process('axes_enter_event', self)
-
-        else:
-            # process a figure enter event
             if self.inaxes is not None:
-                self.canvas.callbacks.process('axes_enter_event', self)
-
-        LocationEvent.lastevent = self
+                self.canvas.callbacks.process("axes_enter_event", self)
+        LocationEvent.lastevent = (
+            None if self.name == "figure_leave_event" else self)
+        super()._process()
 
 
 class MouseButton(IntEnum):
@@ -1410,10 +1416,15 @@ class MouseEvent(LocationEvent):
     ----------
     button : None or `MouseButton` or {'up', 'down'}
         The button pressed. 'up' and 'down' are used for scroll events.
+
         Note that LEFT and RIGHT actually refer to the "primary" and
         "secondary" buttons, i.e. if the user inverts their left and right
         buttons ("left-handed setting") then the LEFT button will be the one
         physically on the right.
+
+        If this is unset, *name* is "scroll_event", and and *step* is nonzero,
+        then this will be set to "up" or "down" depending on the sign of
+        *step*.
 
     key : None or str
         The key pressed when the mouse event triggered, e.g. 'shift'.
@@ -1452,6 +1463,11 @@ class MouseEvent(LocationEvent):
         """
         if button in MouseButton.__members__.values():
             button = MouseButton(button)
+        if name == "scroll_event" and button is None:
+            if step > 0:
+                button = "up"
+            elif step < 0:
+                button = "down"
         self.button = button
         self.key = key
         self.step = step
@@ -1460,6 +1476,17 @@ class MouseEvent(LocationEvent):
         # super-init is deferred to the end because it calls back on
         # 'axes_enter_event', which requires a fully initialized event.
         super().__init__(name, canvas, x, y, guiEvent=guiEvent)
+
+    def _process(self):
+        if self.name == "button_press_event":
+            self.canvas._button = self.button
+        elif self.name == "button_release_event":
+            self.canvas._button = None
+        if self.button is None and self.name != "scroll_event":
+            self.button = self.canvas._button
+        if self.key is None:
+            self.key = self.canvas._key
+        super()._process()
 
     def __str__(self):
         return (f"{self.name}: "
@@ -1503,8 +1530,11 @@ class PickEvent(Event):
 
         cid = fig.canvas.mpl_connect('pick_event', on_pick)
     """
+
     def __init__(self, name, canvas, mouseevent, artist,
                  guiEvent=None, **kwargs):
+        if guiEvent is None:
+            guiEvent = mouseevent.guiEvent
         super().__init__(name, canvas, guiEvent)
         self.mouseevent = mouseevent
         self.artist = artist
@@ -1545,10 +1575,18 @@ class KeyEvent(LocationEvent):
 
         cid = fig.canvas.mpl_connect('key_press_event', on_key)
     """
+
     def __init__(self, name, canvas, key, x=0, y=0, guiEvent=None):
         self.key = key
         # super-init deferred to the end: callback errors if called before
         super().__init__(name, canvas, x, y, guiEvent=guiEvent)
+
+    def _process(self):
+        if self.name == "key_press_event":
+            self.canvas._key = self.key
+        elif self.name == "key_release_event":
+            self.canvas._key = None
+        super()._process()
 
 
 def _get_renderer(figure, print_method=None):
@@ -1776,12 +1814,17 @@ class FigureCanvasBase:
     def resize(self, w, h):
         """Set the canvas size in pixels."""
 
+    @cbook.deprecated(
+        "3.4", alternative="callbacks.process('draw_event', DrawEvent(...))")
     def draw_event(self, renderer):
         """Pass a `DrawEvent` to all functions connected to ``draw_event``."""
         s = 'draw_event'
         event = DrawEvent(s, self, renderer)
         self.callbacks.process(s, event)
 
+    @cbook.deprecated(
+        "3.4",
+        alternative="callbacks.process('resize_event', ResizeEvent(...))")
     def resize_event(self):
         """
         Pass a `ResizeEvent` to all functions connected to ``resize_event``.
@@ -1791,6 +1834,8 @@ class FigureCanvasBase:
         self.callbacks.process(s, event)
         self.draw_idle()
 
+    @cbook.deprecated(
+        "3.4", alternative="callbacks.process('close_event', CloseEvent(...))")
     def close_event(self, guiEvent=None):
         """
         Pass a `CloseEvent` to all functions connected to ``close_event``.
@@ -1807,6 +1852,9 @@ class FigureCanvasBase:
             # AttributeError occurs on OSX with qt4agg upon exiting
             # with an open window; 'callbacks' attribute no longer exists.
 
+    @cbook.deprecated(
+        "3.4",
+        alternative="callbacks.process('key_press_event', KeyEvent(...))")
     def key_press_event(self, key, guiEvent=None):
         """
         Pass a `KeyEvent` to all functions connected to ``key_press_event``.
@@ -1817,6 +1865,9 @@ class FigureCanvasBase:
             s, self, key, self._lastx, self._lasty, guiEvent=guiEvent)
         self.callbacks.process(s, event)
 
+    @cbook.deprecated(
+        "3.4",
+        alternative="callbacks.process('key_release_event', KeyEvent(...))")
     def key_release_event(self, key, guiEvent=None):
         """
         Pass a `KeyEvent` to all functions connected to ``key_release_event``.
@@ -1827,6 +1878,8 @@ class FigureCanvasBase:
         self.callbacks.process(s, event)
         self._key = None
 
+    @cbook.deprecated(
+        "3.4", alternative="callbacks.process('pick_event', PickEvent(...))")
     def pick_event(self, mouseevent, artist, **kwargs):
         """
         Callback processing for pick events.
@@ -1843,6 +1896,9 @@ class FigureCanvasBase:
                           **kwargs)
         self.callbacks.process(s, event)
 
+    @cbook.deprecated(
+        "3.4",
+        alternative="callbacks.process('scroll_event', MouseEvent(...))")
     def scroll_event(self, x, y, step, guiEvent=None):
         """
         Callback processing for scroll events.
@@ -1863,6 +1919,9 @@ class FigureCanvasBase:
                                 step=step, guiEvent=guiEvent)
         self.callbacks.process(s, mouseevent)
 
+    @cbook.deprecated(
+        "3.4",
+        alternative="callbacks.process('button_press_event', MouseEvent(...))")
     def button_press_event(self, x, y, button, dblclick=False, guiEvent=None):
         """
         Callback processing for mouse button press events.
@@ -1880,6 +1939,9 @@ class FigureCanvasBase:
                                 dblclick=dblclick, guiEvent=guiEvent)
         self.callbacks.process(s, mouseevent)
 
+    @cbook.deprecated(
+        "3.4", alternative=("callbacks.process("
+                            "'button_release_event', MouseEvent(...))"))
     def button_release_event(self, x, y, button, guiEvent=None):
         """
         Callback processing for mouse button release events.
@@ -1904,6 +1966,9 @@ class FigureCanvasBase:
         self.callbacks.process(s, event)
         self._button = None
 
+    @cbook.deprecated(
+        "3.4", alternative=("callbacks.process("
+                            "'motion_notify_event', MouseEvent(...))"))
     def motion_notify_event(self, x, y, guiEvent=None):
         """
         Callback processing for mouse movement events.
@@ -1929,6 +1994,9 @@ class FigureCanvasBase:
                            guiEvent=guiEvent)
         self.callbacks.process(s, event)
 
+    @cbook.deprecated(
+        "3.4", alternative=("callbacks.process("
+                            "'leave_notify_event', LocationEvent(...))"))
     def leave_notify_event(self, guiEvent=None):
         """
         Callback processing for the mouse cursor leaving the canvas.
@@ -1945,6 +2013,9 @@ class FigureCanvasBase:
         LocationEvent.lastevent = None
         self._lastx, self._lasty = None, None
 
+    @cbook.deprecated(
+        "3.4", alternative=("callbacks.process("
+                            "'enter_notify_event', LocationEvent(...))"))
     def enter_notify_event(self, guiEvent=None, xy=None):
         """
         Callback processing for the mouse cursor entering the canvas.

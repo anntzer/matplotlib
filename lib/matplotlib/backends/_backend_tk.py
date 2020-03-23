@@ -15,7 +15,8 @@ import matplotlib as mpl
 from matplotlib import _api, backend_tools, cbook, _c_internal_utils
 from matplotlib.backend_bases import (
     _Backend, FigureCanvasBase, FigureManagerBase, NavigationToolbar2,
-    StatusbarBase, TimerBase, ToolContainerBase, cursors, _Mode)
+    StatusbarBase, TimerBase, ToolContainerBase, cursors, _Mode,
+    CloseEvent, KeyEvent, LocationEvent, MouseEvent, ResizeEvent)
 from matplotlib._pylab_helpers import Gcf
 from matplotlib.figure import Figure
 from matplotlib.widgets import SubplotTool
@@ -203,7 +204,7 @@ class FigureCanvasTk(FigureCanvasBase):
         # to the window and filter.
         def filter_destroy(event):
             if event.widget is self._tkcanvas:
-                self.close_event()
+                CloseEvent("close_event", self)._process()
         root.bind("<Destroy>", filter_destroy, "+")
 
         self._master = master
@@ -225,7 +226,7 @@ class FigureCanvasTk(FigureCanvasBase):
             master=self._tkcanvas, width=int(width), height=int(height))
         self._tkcanvas.create_image(
             int(width / 2), int(height / 2), image=self._tkphoto)
-        self.resize_event()
+        ResizeEvent("resize_event", self)._process()
 
     def draw_idle(self):
         # docstring inherited
@@ -251,70 +252,72 @@ class FigureCanvasTk(FigureCanvasBase):
         """
         return self._tkcanvas
 
+    def _mpl_coords(self, pos):
+        """Convert a tk position to Matplotlib coordinates."""
+        # flip y so y=0 is bottom of canvas
+        return pos.x, self.figure.bbox.height - pos.y
+
     def motion_notify_event(self, event):
-        x = event.x
-        # flipy so y=0 is bottom of canvas
-        y = self.figure.bbox.height - event.y
-        super().motion_notify_event(x, y, guiEvent=event)
+        MouseEvent("motion_notify_event", self,
+                   *self._mpl_coords(event),
+                   guiEvent=event)._process()
 
     def enter_notify_event(self, event):
-        x = event.x
-        # flipy so y=0 is bottom of canvas
-        y = self.figure.bbox.height - event.y
-        super().enter_notify_event(guiEvent=event, xy=(x, y))
+        LocationEvent("figure_enter_event", self,
+                      *self._mpl_coords(event),
+                      guiEvent=event)._process()
+
+    def leave_notify_event(self, event):
+        LocationEvent("figure_leave_event", self,
+                      *self._mpl_coords(event),
+                      guiEvent=event)._process()
 
     def button_press_event(self, event, dblclick=False):
-        x = event.x
-        # flipy so y=0 is bottom of canvas
-        y = self.figure.bbox.height - event.y
         num = getattr(event, 'num', None)
-
         if sys.platform == 'darwin':
             # 2 and 3 were reversed on the OSX platform I tested under tkagg.
             if num == 2:
                 num = 3
             elif num == 3:
                 num = 2
-
-        super().button_press_event(x, y, num,
-                                   dblclick=dblclick, guiEvent=event)
+        MouseEvent("button_press_event", self,
+                   *self._mpl_coords(event), num, dblclick=dblclick,
+                   guiEvent=event)._process()
 
     def button_dblclick_event(self, event):
         self.button_press_event(event, dblclick=True)
 
     def button_release_event(self, event):
-        x = event.x
-        # flipy so y=0 is bottom of canvas
-        y = self.figure.bbox.height - event.y
-
         num = getattr(event, 'num', None)
-
         if sys.platform == 'darwin':
             # 2 and 3 were reversed on the OSX platform I tested under tkagg.
             if num == 2:
                 num = 3
             elif num == 3:
                 num = 2
-
-        super().button_release_event(x, y, num, guiEvent=event)
+        MouseEvent("button_release_event", self,
+                   *self._mpl_coords(event), num,
+                   guiEvent=event)._process()
 
     def scroll_event(self, event):
-        x = event.x
-        y = self.figure.bbox.height - event.y
         num = getattr(event, 'num', None)
         step = 1 if num == 4 else -1 if num == 5 else 0
-        super().scroll_event(x, y, step, guiEvent=event)
+        MouseEvent("scroll_event", self,
+                   *self._mpl_coords(event), step=step,
+                   guiEvent=event)._process()
 
     def scroll_event_windows(self, event):
         """MouseWheel event processor"""
         # need to find the window that contains the mouse
         w = event.widget.winfo_containing(event.x_root, event.y_root)
-        if w == self._tkcanvas:
-            x = event.x_root - w.winfo_rootx()
-            y = event.y_root - w.winfo_rooty()
-            y = self.figure.bbox.height - y
-            step = event.delta/120.
-            FigureCanvasBase.scroll_event(self, x, y, step, guiEvent=event)
+        if w != self._tkcanvas:
+            return
+        x = event.x_root - w.winfo_rootx()
+        y = event.y_root - w.winfo_rooty()
+        y = self.figure.bbox.height - y
+        step = event.delta / 120
+        MouseEvent("scroll_event", self,
+                   x, y, step=step, guiEvent=event)._process()
 
     def _get_key(self, event):
         key = cbook._unikey_or_keysym_to_mplkey(event.char, event.keysym)
@@ -351,12 +354,14 @@ class FigureCanvasTk(FigureCanvasBase):
         return key
 
     def key_press(self, event):
-        key = self._get_key(event)
-        FigureCanvasBase.key_press_event(self, key, guiEvent=event)
+        KeyEvent("key_press_event", self,
+                 self._get_key(event), *self._mpl_coords(event),
+                 guiEvent=event)._process()
 
     def key_release(self, event):
-        key = self._get_key(event)
-        FigureCanvasBase.key_release_event(self, key, guiEvent=event)
+        KeyEvent("key_release_event", self,
+                 self._get_key(event), *self._mpl_coords(event),
+                 guiEvent=event)._process()
 
     def new_timer(self, *args, **kwargs):
         # docstring inherited

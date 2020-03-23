@@ -73,6 +73,7 @@ _test_timeout = 10  # Empirically, 1s is not enough on Travis.
 # early.  Also, gtk3 redefines key_press_event with a different signature, so
 # we directly invoke it from the superclass instead.
 def _test_interactive_impl():
+    import importlib
     import importlib.util
     import io
     import json
@@ -81,8 +82,7 @@ def _test_interactive_impl():
 
     import matplotlib as mpl
     from matplotlib import pyplot as plt, rcParams
-    from matplotlib.backend_bases import FigureCanvasBase
-
+    from matplotlib.backend_bases import KeyEvent
     rcParams.update({
         "webagg.open_in_browser": False,
         "webagg.port_retries": 1,
@@ -129,8 +129,8 @@ def _test_interactive_impl():
 
     ax.plot([0, 1], [2, 3])
 
-    timer = fig.canvas.new_timer(1.)  # Test floats casting to int as needed.
-    timer.add_callback(FigureCanvasBase.key_press_event, fig.canvas, "q")
+    timer = fig.canvas.new_timer(1.)  # Test that floats are cast to int.
+    timer.add_callback(KeyEvent("key_press_event", fig.canvas, "q")._process)
     # Trigger quitting upon draw.
     fig.canvas.mpl_connect("draw_event", lambda event: timer.start())
     fig.canvas.mpl_connect("close_event", print)

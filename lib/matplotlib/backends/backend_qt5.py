@@ -11,7 +11,8 @@ from matplotlib import _api, backend_tools, cbook
 from matplotlib._pylab_helpers import Gcf
 from matplotlib.backend_bases import (
     _Backend, FigureCanvasBase, FigureManagerBase, NavigationToolbar2,
-    TimerBase, cursors, ToolContainerBase, StatusbarBase, MouseButton)
+    TimerBase, cursors, ToolContainerBase, StatusbarBase, MouseButton,
+    CloseEvent, KeyEvent, LocationEvent, MouseEvent, ResizeEvent)
 import matplotlib.backends.qt_editor.figureoptions as figureoptions
 from matplotlib.backends.qt_editor._formsubplottool import UiSubplotTool
 from . import qt_compat
@@ -282,14 +283,17 @@ class FigureCanvasQT(QtWidgets.QWidget, FigureCanvasBase):
             x, y = self.mouseEventCoords(event.pos())
         except AttributeError:
             # the event from PyQt4 does not include the position
-            x = y = None
-        FigureCanvasBase.enter_notify_event(self, guiEvent=event, xy=(x, y))
+            x = y = self.mouseEventCoords()
+        LocationEvent("figure_enter_event", self, x, y,
+                      guiEvent=event)._process()
 
     def leaveEvent(self, event):
         QtWidgets.QApplication.restoreOverrideCursor()
-        FigureCanvasBase.leave_notify_event(self, guiEvent=event)
+        LocationEvent("figure_leave_event", self,
+                      *self.mouseEventCoords(),
+                      guiEvent=event)._process()
 
-    def mouseEventCoords(self, pos):
+    def mouseEventCoords(self, pos=None):
         """
         Calculate mouse coordinates in physical pixels.
 
@@ -300,68 +304,73 @@ class FigureCanvasQT(QtWidgets.QWidget, FigureCanvasBase):
         Also, the origin is different and needs to be corrected.
         """
         dpi_ratio = self._dpi_ratio
+        if pos is None:
+            pos = self.mapFromGlobal(QtGui.QCursor.pos())
         x = pos.x()
         # flip y so y=0 is bottom of canvas
         y = self.figure.bbox.height / dpi_ratio - pos.y()
         return x * dpi_ratio, y * dpi_ratio
 
     def mousePressEvent(self, event):
-        x, y = self.mouseEventCoords(event.pos())
         button = self.buttond.get(event.button())
         if button is not None:
-            FigureCanvasBase.button_press_event(self, x, y, button,
-                                                guiEvent=event)
+            MouseEvent("button_press_event", self,
+                       *self.mouseEventCoords(event), button,
+                       guiEvent=event)._process()
 
     def mouseDoubleClickEvent(self, event):
         x, y = self.mouseEventCoords(event.pos())
         button = self.buttond.get(event.button())
         if button is not None:
-            FigureCanvasBase.button_press_event(self, x, y,
-                                                button, dblclick=True,
-                                                guiEvent=event)
+            MouseEvent("button_press_event", self,
+                       *self.mouseEventCoords(event), button, dblclick=True,
+                       guiEvent=event)._process()
 
     def mouseMoveEvent(self, event):
-        x, y = self.mouseEventCoords(event)
-        FigureCanvasBase.motion_notify_event(self, x, y, guiEvent=event)
+        MouseEvent("motion_notify_event", self,
+                   *self.mouseEventCoords(event),
+                   guiEvent=event)._process()
 
     def mouseReleaseEvent(self, event):
-        x, y = self.mouseEventCoords(event)
         button = self.buttond.get(event.button())
         if button is not None:
-            FigureCanvasBase.button_release_event(self, x, y, button,
-                                                  guiEvent=event)
+            MouseEvent("button_release_event", self,
+                       *self.mouseEventCoords(event), button,
+                       guiEvent=event)._process()
 
     if QtCore.qVersion() >= "5.":
         def wheelEvent(self, event):
-            x, y = self.mouseEventCoords(event)
             # from QWheelEvent::delta doc
             if event.pixelDelta().x() == 0 and event.pixelDelta().y() == 0:
                 steps = event.angleDelta().y() / 120
             else:
                 steps = event.pixelDelta().y()
             if steps:
-                FigureCanvasBase.scroll_event(
-                    self, x, y, steps, guiEvent=event)
+                MouseEvent("scroll_event", self,
+                           *self.mouseEventCoords(event), step=steps,
+                           guiEvent=event)._process()
     else:
         def wheelEvent(self, event):
-            x = event.x()
-            # flipy so y=0 is bottom of canvas
-            y = self.figure.bbox.height - event.y()
             # from QWheelEvent::delta doc
             steps = event.delta() / 120
             if event.orientation() == QtCore.Qt.Vertical:
-                FigureCanvasBase.scroll_event(
-                    self, x, y, steps, guiEvent=event)
+                MouseEvent("scroll_event", self,
+                           *self.mouseEventCoords(event), step=steps,
+                           guiEvent=event)._process()
 
     def keyPressEvent(self, event):
         key = self._get_key(event)
         if key is not None:
-            FigureCanvasBase.key_press_event(self, key, guiEvent=event)
+            KeyEvent("key_press_event", self,
+                     key, *self.mouseEventCoords(),
+                     guiEvent=event)._process()
 
     def keyReleaseEvent(self, event):
         key = self._get_key(event)
         if key is not None:
-            FigureCanvasBase.key_release_event(self, key, guiEvent=event)
+            KeyEvent("key_release_event", self,
+                     key, *self.mouseEventCoords(),
+                     guiEvent=event)._process()
 
     def resizeEvent(self, event):
         # _dpi_ratio_prev will be set the first time the canvas is painted, and
@@ -377,7 +386,7 @@ class FigureCanvasQT(QtWidgets.QWidget, FigureCanvasBase):
         # pass back into Qt to let it finish
         QtWidgets.QWidget.resizeEvent(self, event)
         # emit our resize events
-        FigureCanvasBase.resize_event(self)
+        ResizeEvent("resize_event", self)._process()
 
     def sizeHint(self):
         w, h = self.get_width_height()
@@ -537,7 +546,9 @@ class FigureManagerQT(FigureManagerBase):
     def __init__(self, canvas, num):
         super().__init__(canvas, num)
         self.window = MainWindow()
-        self.window.closing.connect(canvas.close_event)
+        self.window.closing.connect(
+            # The lambda prevents the event from being immediately gc'd.
+            lambda: CloseEvent("close_event", self.canvas)._process())
         self.window.closing.connect(self._widgetclosed)
 
         self.window.setWindowTitle("Figure %d" % num)

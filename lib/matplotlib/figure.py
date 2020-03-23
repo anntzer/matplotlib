@@ -28,7 +28,7 @@ import matplotlib.artist as martist
 from matplotlib.artist import (
     Artist, allow_rasterization, _finalize_rasterization)
 from matplotlib.backend_bases import (
-    FigureCanvasBase, NonGuiException, MouseButton)
+    DrawEvent, FigureCanvasBase, NonGuiException, MouseButton)
 import matplotlib.cbook as cbook
 import matplotlib.colorbar as cbar
 import matplotlib.image as mimage
@@ -2888,7 +2888,7 @@ class Figure(FigureBase):
         finally:
             self.stale = False
 
-        self.canvas.draw_event(renderer)
+        DrawEvent("draw_event", self.canvas, renderer)._process()
 
     def draw_artist(self, a):
         """
