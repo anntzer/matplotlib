@@ -2,4 +2,5 @@
 *.ppm binary
 *.svg binary
 *.svg linguist-language=true
+*.m diff=objc
 lib/matplotlib/_version.py export-subst
