@@ -72,11 +72,17 @@ class NoopTestCommand(TestCommand):
 
 class BuildExtraLibraries(BuildExtCommand):
     def finalize_options(self):
-        self.distribution.ext_modules[:] = [
+        self.distribution.ext_modules[:] = exts = [
             ext
             for package in good_packages
             for ext in package.get_extensions()
         ]
+        # Make sure we don't accidentally use modern C++ constructs, even
+        # though modern compilers default to enabling them.  We don't need to
+        # enable this for all platforms, one is enough.
+        if sys.platform != "win32":
+            for ext in exts:
+                ext.extra_compile_args.insert(0, "-std=c++03")
         super().finalize_options()
 
     def build_extensions(self):
