@@ -500,16 +500,42 @@ typedef enum {
 } interpolation_e;
 
 
-template <typename T>
-class type_mapping;
+template<typename T> struct agg_type { typedef T type; };
+template<> struct agg_type<double> { typedef agg::gray64 type; };
+template<> struct agg_type<float> { typedef agg::gray32 type; };
+template<> struct agg_type<unsigned short> { typedef agg::gray16 type; };
+template<> struct agg_type<unsigned char> { typedef agg::gray8 type; };
 
 
-template <> class type_mapping<agg::rgba8>
+// Backport some C++11 utilities.
+template<bool, typename = void> struct enable_if {};
+template<typename T> struct enable_if<true, T> { typedef T type; };
+// (std::conditional + std::is_same)
+template<class U, class V, class T, class F> struct if_is_same { typedef F type; };
+template<class U, class T, class F> struct if_is_same<U, U, T, F> { typedef T type; };
+
+template<typename, typename = void> struct type_mapping;
+
+
+// Use this specialization if type::r exists, i.e. for RGBA types.
+template<typename T>
+struct type_mapping<T, typename enable_if<sizeof(agg_type<T>::type::r)>::type>
 {
- public:
-    typedef agg::rgba8 color_type;
-    typedef fixed_blender_rgba_plain<color_type, agg::order_rgba> blender_type;
-    typedef fixed_blender_rgba_pre<color_type, agg::order_rgba> pre_blender_type;
+    typedef typename agg_type<T>::type color_type;
+    typedef typename
+        if_is_same<
+            T, agg::rgba8,
+            fixed_blender_rgba_plain<color_type, agg::order_rgba>,
+            agg::blender_rgba_plain<color_type, agg::order_rgba>
+        >::type
+        blender_type;
+    typedef typename
+        if_is_same<
+            T, agg::rgba8,
+            fixed_blender_rgba_pre<color_type, agg::order_rgba>,
+            agg::blender_rgba_pre<color_type, agg::order_rgba>
+        >::type
+        pre_blender_type;
     typedef agg::pixfmt_alpha_blend_rgba<blender_type, agg::rendering_buffer> pixfmt_type;
     typedef agg::pixfmt_alpha_blend_rgba<pre_blender_type, agg::rendering_buffer> pixfmt_pre_type;
 
@@ -533,97 +559,11 @@ template <> class type_mapping<agg::rgba8>
 };
 
 
-template <> class type_mapping<agg::rgba16>
+// Use this specialization if type::v exists, i.e. for grayscale types.
+template<typename T>
+struct type_mapping<T, typename enable_if<sizeof(agg_type<T>::type::v)>::type>
 {
- public:
-    typedef agg::rgba16 color_type;
-    typedef fixed_blender_rgba_plain<color_type, agg::order_rgba> blender_type;
-    typedef fixed_blender_rgba_pre<color_type, agg::order_rgba> pre_blender_type;
-    typedef agg::pixfmt_alpha_blend_rgba<blender_type, agg::rendering_buffer> pixfmt_type;
-    typedef agg::pixfmt_alpha_blend_rgba<pre_blender_type, agg::rendering_buffer> pixfmt_pre_type;
-
-    template <typename A>
-    struct span_gen_affine_type
-    {
-        typedef agg::span_image_resample_rgba_affine<A> type;
-    };
-
-    template <typename A, typename B>
-    struct span_gen_filter_type
-    {
-        typedef agg::span_image_filter_rgba<A, B> type;
-    };
-
-    template <typename A, typename B>
-    struct span_gen_nn_type
-    {
-        typedef agg::span_image_filter_rgba_nn<A, B> type;
-    };
-};
-
-
-template <> class type_mapping<agg::rgba32>
-{
- public:
-    typedef agg::rgba32 color_type;
-    typedef agg::blender_rgba_plain<color_type, agg::order_rgba> blender_type;
-    typedef agg::blender_rgba_pre<color_type, agg::order_rgba> pre_blender_type;
-    typedef agg::pixfmt_alpha_blend_rgba<blender_type, agg::rendering_buffer> pixfmt_type;
-    typedef agg::pixfmt_alpha_blend_rgba<pre_blender_type, agg::rendering_buffer> pixfmt_pre_type;
-
-    template <typename A>
-    struct span_gen_affine_type
-    {
-        typedef agg::span_image_resample_rgba_affine<A> type;
-    };
-
-    template <typename A, typename B>
-    struct span_gen_filter_type
-    {
-        typedef agg::span_image_filter_rgba<A, B> type;
-    };
-
-    template <typename A, typename B>
-    struct span_gen_nn_type
-    {
-        typedef agg::span_image_filter_rgba_nn<A, B> type;
-    };
-};
-
-
-template <> class type_mapping<agg::rgba64>
-{
- public:
-    typedef agg::rgba64 color_type;
-    typedef agg::blender_rgba_plain<color_type, agg::order_rgba> blender_type;
-    typedef agg::blender_rgba_pre<color_type, agg::order_rgba> pre_blender_type;
-    typedef agg::pixfmt_alpha_blend_rgba<blender_type, agg::rendering_buffer> pixfmt_type;
-    typedef agg::pixfmt_alpha_blend_rgba<pre_blender_type, agg::rendering_buffer> pixfmt_pre_type;
-
-    template <typename A>
-    struct span_gen_affine_type
-    {
-        typedef agg::span_image_resample_rgba_affine<A> type;
-    };
-
-    template <typename A, typename B>
-    struct span_gen_filter_type
-    {
-        typedef agg::span_image_filter_rgba<A, B> type;
-    };
-
-    template <typename A, typename B>
-    struct span_gen_nn_type
-    {
-        typedef agg::span_image_filter_rgba_nn<A, B> type;
-    };
-};
-
-
-template <> class type_mapping<double>
-{
- public:
-    typedef agg::gray64 color_type;
+    typedef typename agg_type<T>::type color_type;
     typedef agg::blender_gray<color_type> blender_type;
     typedef agg::pixfmt_alpha_blend_gray<blender_type, agg::rendering_buffer> pixfmt_type;
     typedef pixfmt_type pixfmt_pre_type;
@@ -646,91 +586,6 @@ template <> class type_mapping<double>
         typedef agg::span_image_filter_gray_nn<A, B> type;
     };
 };
-
-
-template <> class type_mapping<float>
-{
- public:
-    typedef agg::gray32 color_type;
-    typedef agg::blender_gray<color_type> blender_type;
-    typedef agg::pixfmt_alpha_blend_gray<blender_type, agg::rendering_buffer> pixfmt_type;
-    typedef pixfmt_type pixfmt_pre_type;
-
-    template <typename A>
-    struct span_gen_affine_type
-    {
-        typedef agg::span_image_resample_gray_affine<A> type;
-    };
-
-    template <typename A, typename B>
-    struct span_gen_filter_type
-    {
-        typedef agg::span_image_filter_gray<A, B> type;
-    };
-
-    template <typename A, typename B>
-    struct span_gen_nn_type
-    {
-        typedef agg::span_image_filter_gray_nn<A, B> type;
-    };
-};
-
-
-template <> class type_mapping<unsigned short>
-{
- public:
-    typedef agg::gray16 color_type;
-    typedef agg::blender_gray<color_type> blender_type;
-    typedef agg::pixfmt_alpha_blend_gray<blender_type, agg::rendering_buffer> pixfmt_type;
-    typedef pixfmt_type pixfmt_pre_type;
-
-    template <typename A>
-    struct span_gen_affine_type
-    {
-        typedef agg::span_image_resample_gray_affine<A> type;
-    };
-
-    template <typename A, typename B>
-    struct span_gen_filter_type
-    {
-        typedef agg::span_image_filter_gray<A, B> type;
-    };
-
-    template <typename A, typename B>
-    struct span_gen_nn_type
-    {
-        typedef agg::span_image_filter_gray_nn<A, B> type;
-    };
-};
-
-
-template <> class type_mapping<unsigned char>
-{
- public:
-    typedef agg::gray8 color_type;
-    typedef agg::blender_gray<color_type> blender_type;
-    typedef agg::pixfmt_alpha_blend_gray<blender_type, agg::rendering_buffer> pixfmt_type;
-    typedef pixfmt_type pixfmt_pre_type;
-
-    template <typename A>
-    struct span_gen_affine_type
-    {
-        typedef agg::span_image_resample_gray_affine<A> type;
-    };
-
-    template <typename A, typename B>
-    struct span_gen_filter_type
-    {
-        typedef agg::span_image_filter_gray<A, B> type;
-    };
-
-    template <typename A, typename B>
-    struct span_gen_nn_type
-    {
-        typedef agg::span_image_filter_gray_nn<A, B> type;
-    };
-};
-
 
 
 template<class color_type>
