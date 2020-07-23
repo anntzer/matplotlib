@@ -2322,3 +2322,54 @@ def _unikey_or_keysym_to_mplkey(unikey, keysym):
         "next": "pagedown",  # Used by tk.
     }.get(key, key)
     return key
+
+
+@functools.lru_cache(None)
+def _make_class_factory(
+        mixin_class, fmt, axes_attr=None, *, default_axes_class=None):
+    """
+    Return a function that creates picklable classes inheriting from a mixin.
+
+    After ::
+
+        factory = _make_class_factory(FooMixin, fmt, axes_attr)
+        FooAxes = factory(Axes)
+
+    ``Foo`` is a class that inherits from ``FooMixin`` and ``Axes`` and **is
+    picklable** (picklability is what differentiates this from a plain call to
+    `type`).  Its ``__name__`` is set to ``fmt.format(Axes.__name__)`` and the
+    base class is stored in the ``axes_attr`` attribute, if not None.
+    """
+
+    @functools.lru_cache(None)
+    def class_factory(axes_class):
+        # default_axes_class should go away once the deprecation elapses.
+        if axes_class is None and default_axes_class is not None:
+            warn_deprecated(
+                "3.3", message="Support for passing None to class factories "
+                "is deprecated since %(since)s and will be removed "
+                "%(removal)s; explicitly pass the default Axes class instead.")
+            return class_factory(default_axes_class)
+        d = {"__reduce__":
+             lambda self: (_picklable_class_constructor,
+                           (mixin_class, fmt, axes_attr,
+                            default_axes_class, axes_class,),
+                           self.__getstate__())}
+        if axes_attr is not None:
+            d[axes_attr] = axes_class
+        cls = type(
+            fmt.format(axes_class.__name__), (mixin_class, axes_class), d)
+        # Better in first approximation than __module__ = "matplotlib.cbook"...
+        cls.__module__ = mixin_class.__module__
+        return cls
+
+    return class_factory
+
+
+def _picklable_class_constructor(
+        base_cls, fmt, axes_attr, default_axes_class, axes_class):
+    """Internal helper for _make_class_factory."""
+    cls = _make_class_factory(
+        base_cls, fmt, axes_attr,
+        default_axes_class=default_axes_class)(axes_class)
+    return cls.__new__(cls)

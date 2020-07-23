@@ -1,0 +1,2 @@
+The private ``matplotlib.axes._subplots._subplot_classes`` dict has been removed
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
