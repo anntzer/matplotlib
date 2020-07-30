@@ -20,6 +20,7 @@ import functools
 from io import StringIO
 import logging
 import os
+from pathlib import Path
 import types
 import unicodedata
 
@@ -30,7 +31,7 @@ from pyparsing import (
     Optional, ParseBaseException, ParseFatalException, ParserElement,
     ParseResults, QuotedString, Regex, StringEnd, Suppress, ZeroOrMore)
 
-from matplotlib import cbook, colors as mcolors, rcParams
+from matplotlib import cbook, colors as mcolors, _mathtext_data, rcParams
 from matplotlib.afm import AFM
 from matplotlib.ft2font import FT2Image, KERNING_DEFAULT, LOAD_NO_HINTING
 from matplotlib.font_manager import findfont, FontProperties, get_font
@@ -664,28 +665,51 @@ class BakomaFonts(TruetypeFonts):
 
     def __init__(self, *args, **kwargs):
         self._stix_fallback = StixFonts(*args, **kwargs)
-
         super().__init__(*args, **kwargs)
         self.fontmap = {}
         for key, val in self._fontmap.items():
             fullpath = findfont(val)
             self.fontmap[key] = fullpath
             self.fontmap[val] = fullpath
+        # Compute list of glyphs that are unique across the fonts (except for
+        # tt).
+        name_to_fonts = {}
+        for val in self._fontmap.values():
+            face = self._get_font(val)
+            for i in range(face.num_glyphs):
+                name_to_fonts.setdefault(face.get_glyph_name(i), set()).add(val)
+        self._name_to_font = {
+            name: (fonts - {"cmtt10"} or fonts).pop()
+            for name, fonts in name_to_fonts.items()
+            if len(fonts - {"cmtt10"}) <= 1}
 
     _slanted_symbols = set(r"\int \oint".split())
 
     def _get_glyph(self, fontname, font_class, sym, fontsize, math=True):
         symbol_name = None
         font = None
+        # FIXME: 1) duplicate names; 2) cm-specific names.
         if fontname in self.fontmap and sym in latex_to_bakoma:
             basename, num = latex_to_bakoma[sym]
             slanted = (basename == "cmmi10") or sym in self._slanted_symbols
             font = self._get_font(basename)
-        elif len(sym) == 1:
-            slanted = (fontname == "it")
-            font = self._get_font(fontname)
-            if font is not None:
-                num = ord(sym)
+        else:
+            try:
+                name = _mathtext_data.uni2type1[get_unicode_index(sym)]
+            except KeyError:
+                pass  # symbol_name == None, stix fallback below.
+            else:
+                try:
+                    fontname = self._name_to_font[name]
+                except KeyError:
+                    pass  # Use original fontname.
+                slanted = (fontname == "it")
+                font = self._get_font(fontname)
+                if font is not None:
+                    # FIXME: This needs something like freetypybind._get_chars
+                    # to get the name to (pseudo) charcode mapping, instead of
+                    # using the name to glyph index mapping.
+                    num = font.get_name_index(name)
 
         if font is not None:
             gid = font.get_char_index(num)
@@ -1111,13 +1135,24 @@ class StandardPsFonts(Fonts):
         if filename is None:
             filename = findfont('Helvetica', fontext='afm',
                                 directory=self.basepath)
-        with open(filename, 'rb') as fd:
-            default_font = AFM(fd)
-        default_font.fname = filename
+        default_font = self._get_font(Path(filename).stem)
 
         self.fonts['default'] = default_font
         self.fonts['regular'] = default_font
         self.pswriter = StringIO()
+
+        # Compute list of glyphs that are unique across the fonts.
+        name_to_fonts_indices = {}
+        for val in self.fontmap.values():
+            face = self._get_font(val)
+            # Actually we should be using names to handle codeless glyphs, but heh.
+            for idx, metrics in face._metrics.items():
+                name_to_fonts_indices.setdefault(metrics.name, []).append(
+                    (val, idx))
+        self._name_to_font_index = {
+            name: fonts_indices[0]
+            for name, fonts_indices in name_to_fonts_indices.items()
+            if len(fonts_indices) == 1}
 
     def _get_font(self, font):
         if font in self.fontmap:
@@ -1152,17 +1187,26 @@ class StandardPsFonts(Fonts):
 
         found_symbol = False
 
-        if sym in latex_to_standard:
-            fontname, num = latex_to_standard[sym]
+        try:
+            fontname, num = self._name_to_font_index[
+                _mathtext_data.uni2type1[get_unicode_index(sym)]]
             glyph = chr(num)
             found_symbol = True
-        elif len(sym) == 1:
-            glyph = sym
-            num = ord(glyph)
-            found_symbol = True
-        else:
-            _log.warning(
-                "No TeX to built-in Postscript mapping for {!r}".format(sym))
+        except KeyError:  # Either dict lookup can fail.
+            # Could merge this table into self._name_to_font immediately, but
+            # this reveals some extra entries which are useless and not in
+            # uni2type1, e.g. \leftbracket.
+            if sym in latex_to_standard:
+                fontname, num = latex_to_standard[sym]
+                glyph = chr(num)
+                found_symbol = True
+            elif len(sym) == 1:
+                glyph = sym
+                num = ord(glyph)
+                found_symbol = True
+            else:
+                _log.warning(
+                    "No TeX to built-in Postscript mapping for %r", sym)
 
         slanted = (fontname == 'it')
         font = self._get_font(fontname)
