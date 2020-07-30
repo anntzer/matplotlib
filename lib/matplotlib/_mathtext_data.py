@@ -2,29 +2,33 @@
 font data tables for truetype and afm computer modern fonts
 """
 
+latex_to_cmex = {
+    r'\__sqrt__'   : 0x70,
+    r'\bigcap'     : 0x5c,
+    r'\bigcup'     : 0x5b,
+    r'\bigodot'    : 0x4b,
+    r'\bigoplus'   : 0x4d,
+    r'\bigotimes'  : 0x4f,
+    r'\biguplus'   : 0x5d,
+    r'\bigvee'     : 0x5f,
+    r'\bigwedge'   : 0x5e,
+    r'\coprod'     : 0x61,
+    r'\int'        : 0x5a,
+    r'\leftangle'  : 0xad,
+    r'\leftbrace'  : 0xa9,
+    r'\oint'       : 0x49,
+    r'\prod'       : 0x59,
+    r'\rightangle' : 0xae,
+    r'\rightbrace' : 0xaa,
+    r'\sum'        : 0x58,
+    r'\widehat'    : 0x62,
+    r'\widetilde'  : 0x65,
+}
+
 latex_to_bakoma = {
-    '\\__sqrt__'                 : ('cmex10', 0x70),
-    '\\bigcap'                   : ('cmex10', 0x5c),
-    '\\bigcup'                   : ('cmex10', 0x5b),
-    '\\bigodot'                  : ('cmex10', 0x4b),
-    '\\bigoplus'                 : ('cmex10', 0x4d),
-    '\\bigotimes'                : ('cmex10', 0x4f),
-    '\\biguplus'                 : ('cmex10', 0x5d),
-    '\\bigvee'                   : ('cmex10', 0x5f),
-    '\\bigwedge'                 : ('cmex10', 0x5e),
-    '\\coprod'                   : ('cmex10', 0x61),
-    '\\int'                      : ('cmex10', 0x5a),
+    **{k: ('cmex10', v) for k, v in latex_to_cmex.items()},
     '\\langle'                   : ('cmex10', 0xad),
-    '\\leftangle'                : ('cmex10', 0xad),
-    '\\leftbrace'                : ('cmex10', 0xa9),
-    '\\oint'                     : ('cmex10', 0x49),
-    '\\prod'                     : ('cmex10', 0x59),
     '\\rangle'                   : ('cmex10', 0xae),
-    '\\rightangle'               : ('cmex10', 0xae),
-    '\\rightbrace'               : ('cmex10', 0xaa),
-    '\\sum'                      : ('cmex10', 0x58),
-    '\\widehat'                  : ('cmex10', 0x62),
-    '\\widetilde'                : ('cmex10', 0x65),
     '\\{'                        : ('cmex10', 0xa9),
     '\\}'                        : ('cmex10', 0xaa),
     '{'                          : ('cmex10', 0xa9),
@@ -234,29 +238,6 @@ latex_to_bakoma = {
     '|'                          : ('cmsy10', 0x6a),
 
     '\\_'                        : ('cmtt10', 0x5f)
-}
-
-latex_to_cmex = {
-    r'\__sqrt__'   : 112,
-    r'\bigcap'     : 92,
-    r'\bigcup'     : 91,
-    r'\bigodot'    : 75,
-    r'\bigoplus'   : 77,
-    r'\bigotimes'  : 79,
-    r'\biguplus'   : 93,
-    r'\bigvee'     : 95,
-    r'\bigwedge'   : 94,
-    r'\coprod'     : 97,
-    r'\int'        : 90,
-    r'\leftangle'  : 173,
-    r'\leftbrace'  : 169,
-    r'\oint'       : 73,
-    r'\prod'       : 89,
-    r'\rightangle' : 174,
-    r'\rightbrace' : 170,
-    r'\sum'        : 88,
-    r'\widehat'    : 98,
-    r'\widetilde'  : 101,
 }
 
 latex_to_standard = {
