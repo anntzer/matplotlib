@@ -1,0 +1,7 @@
+``FigureFrameWx`` and subclasses
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+``FigureFrameWx.get_canvas`` was a helper for the ``FigureFrameWx`` constructor,
+and is now deprecated.  ``FigureFrameWxAgg`` and ``FigureFrameWxCairo`` are
+deprecated in favor of passing the corresponding canvas class as the *canvas_cls*
+kwarg to ``FigureFrameWx``.

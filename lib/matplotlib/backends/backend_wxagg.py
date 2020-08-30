@@ -1,11 +1,14 @@
 import wx
 
+from matplotlib import cbook
 from .backend_agg import FigureCanvasAgg
 from .backend_wx import (
     _BackendWx, _FigureCanvasWxBase, FigureFrameWx,
     NavigationToolbar2Wx as NavigationToolbar2WxAgg)
 
 
+@cbook.deprecated(
+    "3.4", alternative="FigureFrameWx(..., canvas_cls=FigureCanvasWxAgg)")
 class FigureFrameWxAgg(FigureFrameWx):
     def get_canvas(self, fig):
         return FigureCanvasWxAgg(self, -1, fig)

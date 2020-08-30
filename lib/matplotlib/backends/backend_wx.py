@@ -7,6 +7,7 @@ Hunter (jdhunter@ace.bsd.uchicago.edu).
 Copyright (C) Jeremy O'Donoghue & John Hunter, 2003-4.
 """
 
+import functools
 import logging
 import math
 import pathlib
@@ -56,6 +57,15 @@ PIXELS_PER_INCH = 75
 
 # Delay time for idle checks
 IDLE_DELAY = 5  # Documented as deprecated as of Matplotlib 3.1.
+
+
+# lru_cache holds a reference to the App and prevents it from being gc'ed.
+@functools.lru_cache()
+def _create_wxapp():
+    wxapp = wx.App(False)
+    wxapp.SetExitOnFrameDelete(True)
+    cbook._setup_new_guiapp()
+    return wxapp
 
 
 def error_msg_wx(msg, parent=None):
@@ -536,6 +546,17 @@ class _FigureCanvasWxBase(FigureCanvasBase, wx.Panel):
         self.SetBackgroundStyle(wx.BG_STYLE_PAINT)  # Reduce flicker.
         self.SetBackgroundColour(wx.WHITE)
 
+    @classmethod
+    def new_manager(cls, figure, num):
+        # docstring inherited
+        wxapp = wx.GetApp() or _create_wxapp()
+        frame = FigureFrameWx(num, figure, canvas_cls=cls)
+        figmgr = frame.get_figure_manager()
+        if mpl.is_interactive():
+            figmgr.frame.Show()
+            figure.canvas.draw_idle()
+        return figmgr
+
     def Copy_to_Clipboard(self, event=None):
         """Copy bitmap of canvas to system clipboard."""
         bmp_obj = wx.BitmapDataObject()
@@ -895,7 +916,7 @@ class FigureCanvasWx(_FigureCanvasWxBase):
 
 
 class FigureFrameWx(wx.Frame):
-    def __init__(self, num, fig):
+    def __init__(self, num, fig, *, canvas_cls=FigureCanvasWx):
         # On non-Windows platform, explicitly set the position - fix
         # positioning bug on some Linux platforms
         if wx.Platform == '__WXMSW__':
@@ -908,7 +929,7 @@ class FigureFrameWx(wx.Frame):
         self.num = num
         _set_frame_icon(self)
 
-        self.canvas = self.get_canvas(fig)
+        self.canvas = canvas_cls(self, -1, fig)
         self.canvas.SetInitialSize(wx.Size(fig.bbox.width, fig.bbox.height))
         self.canvas.SetFocus()
         self.sizer = wx.BoxSizer(wx.VERTICAL)
@@ -955,6 +976,7 @@ class FigureFrameWx(wx.Frame):
             toolbar = None
         return toolbar
 
+    @cbook.deprecated("3.4")
     def get_canvas(self, fig):
         return FigureCanvasWx(self, -1, fig)
 
@@ -1477,33 +1499,10 @@ backend_tools.ToolCopyToClipboard = ToolCopyToClipboardWx
 class _BackendWx(_Backend):
     FigureCanvas = FigureCanvasWx
     FigureManager = FigureManagerWx
-    _frame_class = FigureFrameWx
 
     @staticmethod
     def trigger_manager_draw(manager):
         manager.canvas.draw_idle()
-
-    @classmethod
-    def new_figure_manager(cls, num, *args, **kwargs):
-        # Create a wx.App instance if it has not been created so far.
-        wxapp = wx.GetApp()
-        if wxapp is None:
-            wxapp = wx.App(False)
-            wxapp.SetExitOnFrameDelete(True)
-            cbook._setup_new_guiapp()
-            # Retain a reference to the app object so that it does not get
-            # garbage collected.
-            _BackendWx._theWxApp = wxapp
-        return super().new_figure_manager(num, *args, **kwargs)
-
-    @classmethod
-    def new_figure_manager_given_figure(cls, num, figure):
-        frame = cls._frame_class(num, figure)
-        figmgr = frame.get_figure_manager()
-        if mpl.is_interactive():
-            figmgr.frame.Show()
-            figure.canvas.draw_idle()
-        return figmgr
 
     @staticmethod
     def mainloop():

@@ -136,6 +136,11 @@ class FigureCanvasGTK3(Gtk.DrawingArea, FigureCanvasBase):
         if renderer_init:
             renderer_init()
 
+    @classmethod
+    def new_manager(cls, figure, num):
+        # docstring inherited
+        return FigureManagerGTK3(cls(figure), num)
+
     @cbook.deprecated("3.3", alternative="__init__")
     def _renderer_init(self):
         pass

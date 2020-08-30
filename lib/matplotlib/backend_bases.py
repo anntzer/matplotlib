@@ -51,6 +51,7 @@ from matplotlib.cbook import _setattr_cm
 from matplotlib.path import Path
 from matplotlib.rcsetup import validate_joinstyle, validate_capstyle
 from matplotlib.transforms import Affine2D
+from matplotlib.widgets import SubplotTool
 
 
 _log = logging.getLogger(__name__)
@@ -1756,6 +1757,16 @@ class FigureCanvasBase:
             if _is_non_interactive_terminal_ipython(ip):
                 ip.enable_gui(backend2gui_rif)
 
+    @classmethod
+    def new_manager(cls, figure, num):
+        """
+        Create a new figure manager for *figure*, using this canvas class.
+
+        Backends should override this method to instantiate the correct figure
+        manager subclass, and perform any additional setup that may be needed.
+        """
+        return FigureManagerBase(cls(figure), num)
+
     @contextmanager
     def _idle_draw_cntx(self):
         self._is_idle_drawing = True
@@ -3289,9 +3300,16 @@ class NavigationToolbar2:
         self.canvas.draw_idle()
 
     def configure_subplots(self, *args):
-        plt = _safe_pyplot_import()
-        self.subplot_tool = plt.subplot_tool(self.canvas.figure)
-        self.subplot_tool.figure.canvas.manager.show()
+        # This import needs to happen here due to circular imports.
+        from matplotlib.figure import Figure
+        with mpl.rc_context({"toolbar": "none"}):  # No navbar for the toolfig.
+            manager = type(self.canvas).new_manager(Figure(figsize=(6, 3)), -1)
+        manager.set_window_title("Subplot configuration tool")
+        tool_fig = manager.canvas.figure
+        tool_fig.subplots_adjust(top=0.9)
+        manager.show()
+        self.subplot_tool = SubplotTool(self.canvas.figure, tool_fig)
+        return self.subplot_tool
 
     def save_figure(self, *args):
         """Save the current figure."""
@@ -3533,9 +3551,7 @@ class _Backend:
     @classmethod
     def new_figure_manager_given_figure(cls, num, figure):
         """Create a new figure manager instance for the given figure."""
-        canvas = cls.FigureCanvas(figure)
-        manager = cls.FigureManager(canvas, num)
-        return manager
+        return cls.FigureCanvas.new_manager(figure, num)
 
     @classmethod
     def draw_if_interactive(cls):

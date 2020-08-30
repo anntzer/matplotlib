@@ -1,11 +1,14 @@
 import wx.lib.wxcairo as wxcairo
 
+from matplotlib import cbook
 from .backend_cairo import cairo, FigureCanvasCairo, RendererCairo
 from .backend_wx import (
     _BackendWx, _FigureCanvasWxBase, FigureFrameWx,
     NavigationToolbar2Wx as NavigationToolbar2WxCairo)
 
 
+@cbook.deprecated(
+    "3.4", alternative="FigureFrameWx(..., canvas_cls=FigureCanvasWxCairo)")
 class FigureFrameWxCairo(FigureFrameWx):
     def get_canvas(self, fig):
         return FigureCanvasWxCairo(self, -1, fig)
@@ -44,4 +47,3 @@ class FigureCanvasWxCairo(_FigureCanvasWxBase, FigureCanvasCairo):
 @_BackendWx.export
 class _BackendWxCairo(_BackendWx):
     FigureCanvas = FigureCanvasWxCairo
-    _frame_class = FigureFrameWxCairo

@@ -240,6 +240,11 @@ class FigureCanvasQT(QtWidgets.QWidget, FigureCanvasBase):
         palette = QtGui.QPalette(QtCore.Qt.white)
         self.setPalette(palette)
 
+    @classmethod
+    def new_manager(cls, figure, num):
+        # docstring inherited
+        return FigureManagerQT(cls(figure), num)
+
     def _update_figure_dpi(self):
         dpi = self._dpi_ratio * self.figure._original_dpi
         self.figure._set_dpi(dpi, forward=False)
