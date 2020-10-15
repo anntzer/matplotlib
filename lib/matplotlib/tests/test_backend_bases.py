@@ -1,3 +1,4 @@
+import os
 import re
 
 from matplotlib.backend_bases import (
@@ -5,9 +6,11 @@ from matplotlib.backend_bases import (
     NavigationToolbar2, RendererBase)
 from matplotlib.backend_tools import (ToolZoom, ToolPan, RubberbandBase,
                                       ToolViewsPositions, _views_positions)
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import matplotlib.transforms as transforms
 import matplotlib.path as path
+
 import numpy as np
 import pytest
 
@@ -51,6 +54,10 @@ def test_uses_per_path():
     check(id, paths, tforms_matrices, offsets, facecolors, [])
     check(id, paths, tforms_matrices, offsets, [], [])
     check(id, paths, tforms_matrices, offsets, facecolors[0:1], edgecolors)
+
+
+def test_canvas_ctor():
+    assert isinstance(FigureCanvasBase().figure, Figure)
 
 
 def test_get_default_filename(tmpdir):

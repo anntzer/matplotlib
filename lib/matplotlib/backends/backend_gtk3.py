@@ -101,7 +101,7 @@ class FigureCanvasGTK3(Gtk.DrawingArea, FigureCanvasBase):
                   | Gdk.EventMask.POINTER_MOTION_HINT_MASK
                   | Gdk.EventMask.SCROLL_MASK)
 
-    def __init__(self, figure):
+    def __init__(self, figure=None):
         FigureCanvasBase.__init__(self, figure)
         GObject.GObject.__init__(self)
 
