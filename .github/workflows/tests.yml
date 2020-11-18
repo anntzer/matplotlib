@@ -140,7 +140,7 @@ jobs:
 
           # Install dependencies from PyPI.
           python -mpip install --upgrade $PRE \
-            cycler kiwisolver numpy pillow pyparsing python-dateutil \
+            cycler kiwisolver numpy pillow pyparsing python-dateutil setuptools-scm \
             -r requirements/testing/travis_all.txt \
             ${{ matrix.extra-requirements }}
 
