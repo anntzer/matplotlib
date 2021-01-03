@@ -47,7 +47,8 @@ import logging
 from numbers import Integral, Real
 
 from matplotlib import _api, colors as mcolors
-from matplotlib.backends.qt_compat import QtGui, QtWidgets, QtCore
+from .. import qt_compat
+from ..qt_compat import QtGui, QtWidgets, QtCore, _enum
 
 _log = logging.getLogger(__name__)
 
@@ -203,8 +204,7 @@ class FontLayout(QtWidgets.QGridLayout):
 def is_edit_valid(edit):
     text = edit.text()
     state = edit.validator().validate(text, 0)[0]
-
-    return state == QtGui.QDoubleValidator.Acceptable
+    return state == _enum("QtGui.QDoubleValidator.State").Acceptable
 
 
 class FormWidget(QtWidgets.QWidget):
@@ -291,10 +291,7 @@ class FormWidget(QtWidgets.QWidget):
                 field.setCurrentIndex(selindex)
             elif isinstance(value, bool):
                 field = QtWidgets.QCheckBox(self)
-                if value:
-                    field.setCheckState(QtCore.Qt.Checked)
-                else:
-                    field.setCheckState(QtCore.Qt.Unchecked)
+                field.setChecked(value)
             elif isinstance(value, Integral):
                 field = QtWidgets.QSpinBox(self)
                 field.setRange(-10**9, 10**9)
@@ -336,7 +333,7 @@ class FormWidget(QtWidgets.QWidget):
                 else:
                     value = value[index]
             elif isinstance(value, bool):
-                value = field.checkState() == QtCore.Qt.Checked
+                value = field.isChecked()
             elif isinstance(value, Integral):
                 value = int(field.value())
             elif isinstance(value, Real):
@@ -436,10 +433,12 @@ class FormDialog(QtWidgets.QDialog):
 
         # Button box
         self.bbox = bbox = QtWidgets.QDialogButtonBox(
-            QtWidgets.QDialogButtonBox.Ok | QtWidgets.QDialogButtonBox.Cancel)
+            _enum("QtWidgets.QDialogButtonBox.StandardButtons").Ok
+            | _enum("QtWidgets.QDialogButtonBox.StandardButtons").Cancel)
         self.formwidget.update_buttons.connect(self.update_buttons)
         if self.apply_callback is not None:
-            apply_btn = bbox.addButton(QtWidgets.QDialogButtonBox.Apply)
+            apply_btn = bbox.addButton(
+                _enum("QtWidgets.QDialogButtonBox.StandardButtons").Apply)
             apply_btn.clicked.connect(self.apply)
 
         bbox.accepted.connect(self.accept)
@@ -462,9 +461,10 @@ class FormDialog(QtWidgets.QDialog):
         for field in self.float_fields:
             if not is_edit_valid(field):
                 valid = False
-        for btn_type in (QtWidgets.QDialogButtonBox.Ok,
-                         QtWidgets.QDialogButtonBox.Apply):
-            btn = self.bbox.button(btn_type)
+        for btn_type in ["Ok", "Cancel"]:
+            btn = self.bbox.button(
+                getattr(_enum("QtWidgets.QDialogButtonBox.StandardButtons"),
+                        btn_type))
             if btn is not None:
                 btn.setEnabled(valid)
 
@@ -518,7 +518,7 @@ def fedit(data, title="", comment="", icon=None, parent=None, apply=None):
     if QtWidgets.QApplication.startingUp():
         _app = QtWidgets.QApplication([])
     dialog = FormDialog(data, title, comment, icon, parent, apply)
-    if dialog.exec_():
+    if qt_compat._exec(dialog):
         return dialog.get()
 
 
