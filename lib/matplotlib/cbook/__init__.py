@@ -51,17 +51,17 @@ def _get_running_interactive_framework():
     Returns
     -------
     Optional[str]
-        One of the following values: "qt5", "qt4", "gtk3", "wx", "tk",
-        "macosx", "headless", ``None``.
+        One of the following values: "qt", "gtk3", "wx", "tk", "macosx",
+        "headless", ``None``.
     """
-    QtWidgets = (sys.modules.get("PyQt5.QtWidgets")
-                 or sys.modules.get("PySide2.QtWidgets"))
+    QtWidgets = (sys.modules.get("PyQt6.QtWidgets")
+                 or sys.modules.get("PySide6.QtWidgets")
+                 or sys.modules.get("PyQt5.QtWidgets")
+                 or sys.modules.get("PySide2.QtWidgets")
+                 or sys.modules.get("PyQt4.QtGui")
+                 or sys.modules.get("PySide.QtGui"))
     if QtWidgets and QtWidgets.QApplication.instance():
-        return "qt5"
-    QtGui = (sys.modules.get("PyQt4.QtGui")
-             or sys.modules.get("PySide.QtGui"))
-    if QtGui and QtGui.QApplication.instance():
-        return "qt4"
+        return "qt"
     Gtk = sys.modules.get("gi.repository.Gtk")
     if Gtk and Gtk.main_level():
         return "gtk3"

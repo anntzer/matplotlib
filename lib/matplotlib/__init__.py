@@ -1092,7 +1092,7 @@ def use(backend, *, force=True):
 
         - interactive backends:
           GTK3Agg, GTK3Cairo, MacOSX, nbAgg,
-          Qt4Agg, Qt4Cairo, Qt5Agg, Qt5Cairo,
+          QtAgg, QtCairo, Qt4Agg, Qt4Cairo, Qt5Agg, Qt5Cairo,
           TkAgg, TkCairo, WebAgg, WX, WXAgg, WXCairo
 
         - non-interactive backends:

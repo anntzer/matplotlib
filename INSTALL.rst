@@ -179,8 +179,7 @@ interface toolkits. See :ref:`what-is-a-backend` for more details on the
 optional Matplotlib backends and the capabilities they provide.
 
 * Tk_ (>= 8.3, != 8.6.0 or 8.6.1): for the Tk-based backends.
-* PyQt4_ (>= 4.6) or PySide_ (>= 1.0.3) [#]_: for the Qt4-based backends.
-* PyQt5_ or PySide2_: for the Qt5-based backends.
+* PyQt6_, PySide6_, PyQt5_, or PySide2_: for the Qt-based backends.
 * PyGObject_: for the GTK3-based backends [#]_.
 * wxPython_ (>= 4) [#]_: for the wx-based backends.
 * pycairo_ (>= 1.11.0) or cairocffi_ (>= 0.8): for the GTK3 and/or cairo-based
@@ -188,8 +187,8 @@ optional Matplotlib backends and the capabilities they provide.
 * Tornado_: for the WebAgg backend.
 
 .. _Tk: https://docs.python.org/3/library/tk.html
-.. _PyQt4: https://pypi.org/project/PyQt4
-.. _PySide: https://pypi.org/project/PySide
+.. _PyQt6: https://pypi.org/project/PyQt6
+.. _PySide6: https://pypi.org/project/PySide6
 .. _PyQt5: https://pypi.org/project/PyQt5
 .. _PySide2: https://pypi.org/project/PySide2
 .. _PyGObject: https://pygobject.readthedocs.io/en/latest/
@@ -198,7 +197,6 @@ optional Matplotlib backends and the capabilities they provide.
 .. _cairocffi: https://cairocffi.readthedocs.io/en/latest/
 .. _Tornado: https://pypi.org/project/tornado
 
-.. [#] PySide cannot be pip-installed on Linux (but can be conda-installed).
 .. [#] If using pip (and not conda), PyGObject must be built from source; see
        https://pygobject.readthedocs.io/en/latest/devguide/dev_environ.html.
 .. [#] If using pip (and not conda) on Linux, wxPython wheels must be manually
