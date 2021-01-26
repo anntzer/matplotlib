@@ -26,7 +26,7 @@ graphics contexts must implement to serve as a Matplotlib backend.
 """
 
 from collections import namedtuple
-from contextlib import contextmanager, suppress
+from contextlib import ExitStack, contextmanager, suppress
 from enum import Enum, IntEnum
 import functools
 import importlib
@@ -2179,22 +2179,16 @@ class FigureCanvasBase:
 
         # Remove the figure manager, if any, to avoid resizing the GUI widget.
         with cbook._setattr_cm(self, manager=None), \
-                cbook._setattr_cm(self.figure, dpi=dpi), \
-                cbook._setattr_cm(canvas, _is_saving=True):
-            origfacecolor = self.figure.get_facecolor()
-            origedgecolor = self.figure.get_edgecolor()
+             cbook._setattr_cm(self.figure, dpi=dpi), \
+             cbook._setattr_cm(canvas, _is_saving=True), \
+             ExitStack() as stack:
 
-            if facecolor is None:
-                facecolor = rcParams['savefig.facecolor']
-            if cbook._str_equal(facecolor, 'auto'):
-                facecolor = origfacecolor
-            if edgecolor is None:
-                edgecolor = rcParams['savefig.edgecolor']
-            if cbook._str_equal(edgecolor, 'auto'):
-                edgecolor = origedgecolor
-
-            self.figure.set_facecolor(facecolor)
-            self.figure.set_edgecolor(edgecolor)
+            for prop in ["facecolor", "edgecolor"]:
+                color = locals()[prop]
+                if color is None:
+                    color = rcParams[f"savefig.{prop}"]
+                if not cbook._str_equal(color, "auto"):
+                    stack.enter_context(self.figure._cm_set(**{prop: color}))
 
             if bbox_inches is None:
                 bbox_inches = rcParams['savefig.bbox']
@@ -2232,8 +2226,7 @@ class FigureCanvasBase:
                 _bbox_inches_restore = None
 
             # we have already done CL above, so turn it off:
-            cl_state = self.figure.get_constrained_layout()
-            self.figure.set_constrained_layout(False)
+            stack.enter_context(self.figure._cm_set(constrained_layout=False))
             try:
                 result = print_method(
                     filename,
@@ -2247,11 +2240,7 @@ class FigureCanvasBase:
                 if bbox_inches and restore_bbox:
                     restore_bbox()
 
-                self.figure.set_facecolor(origfacecolor)
-                self.figure.set_edgecolor(origedgecolor)
                 self.figure.set_canvas(self)
-            # reset to cached state
-            self.figure.set_constrained_layout(cl_state)
             return result
 
     @classmethod

@@ -1,3 +1,4 @@
+import contextlib
 from collections import OrderedDict, namedtuple
 from functools import wraps
 import inspect
@@ -1169,6 +1170,18 @@ class Artist:
         if move_color_to_start:
             kwargs = {"color": kwargs.pop("color"), **kwargs}
         return self.update(kwargs)
+
+    @contextlib.contextmanager
+    def _cm_set(self, **kwargs):
+        """
+        `.Artist.set` context-manager that restores original values at exit.
+        """
+        orig_vals = {k: getattr(self, f"get_{k}")() for k in kwargs}
+        try:
+            self.set(**kwargs)
+            yield
+        finally:
+            self.set(**orig_vals)
 
     def findobj(self, match=None, include_self=True):
         """

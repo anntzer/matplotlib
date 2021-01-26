@@ -1733,8 +1733,7 @@ class _SelectorWidget(AxesWidget):
         with ExitStack() as stack:
             if needs_redraw:
                 for artist in self.artists:
-                    stack.callback(artist.set_visible, artist.get_visible())
-                    artist.set_visible(False)
+                    stack.enter_context(artist._cm_set(visible=False))
                 self.canvas.draw()
             self.background = self.canvas.copy_from_bbox(self.ax.bbox)
         if needs_redraw:
