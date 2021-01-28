@@ -278,7 +278,7 @@ Other branches are fed through :ref:`automatic <automated-backports>` or
 targeting other branches is only rarely necessary for special maintenance
 work.
 
-.. backport_strategy:
+.. _backport_strategy:
 
 Backport strategy
 -----------------
