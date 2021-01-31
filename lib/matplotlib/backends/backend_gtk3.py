@@ -126,6 +126,8 @@ class FigureCanvasGTK3(Gtk.DrawingArea, FigureCanvasBase):
 
         self.set_double_buffered(True)
         self.set_can_focus(True)
+        self.override_background_color(
+            Gtk.StateFlags.NORMAL, Gdk.RGBA(1, 1, 1, 1))
 
         renderer_init = _api.deprecate_method_override(
             __class__._renderer_init, self, allow_empty=True, since="3.3",
