@@ -1684,6 +1684,7 @@ class IndexLocator(Locator):
     IndexLocator assumes index plotting; i.e., that the ticks are placed at integer
     values in the range between 0 and len(data) inclusive.
     """
+
     def __init__(self, base, offset):
         """Place ticks every *base* data point, starting at *offset*."""
         self._base = base
@@ -1710,11 +1711,11 @@ class FixedLocator(Locator):
     """
     Place ticks at a set of fixed values.
 
-    If *nbins* is None ticks are placed at all values. Otherwise, the *locs* array of
-    possible positions will be subsampled to keep the number of ticks <=
-    :math:`nbins* +1`. The subsampling will be done to include the smallest absolute
-    value; for example, if zero is included in the array of possibilities, then it of
-    the chosen ticks.
+    If *nbins* is None ticks are placed at all values. Otherwise, the *locs*
+    array of possible positions will be subsampled to keep the number of
+    ticks <= *nbins*+1. The subsampling will be done to include the
+    smallest absolute value; for example, if zero is included in the array of
+    possibilities, then it will be among the chosen ticks.
     """
 
     def __init__(self, locs, nbins=None):
@@ -1752,9 +1753,7 @@ class FixedLocator(Locator):
 
 
 class NullLocator(Locator):
-    """
-    No ticks
-    """
+    """Place no ticks."""
 
     def __call__(self):
         return self.tick_values(None, None)
@@ -1775,12 +1774,11 @@ class LinearLocator(Locator):
     """
     Place ticks at evenly spaced values.
 
-    The first time this function is called it will try to set the
-    number of ticks to make a nice tick partitioning.  Thereafter, the
-    number of ticks will be fixed so that interactive navigation will
-    be nice
-
+    At the first call, a "nice" number of ticks will be determined.
+    Thereafter, the number of ticks will be fixed to avoid jumping during
+    interactive navigation.
     """
+
     def __init__(self, numticks=None, presets=None):
         """
         Parameters
@@ -2267,9 +2265,7 @@ def _is_close_to_int(x):
 
 class LogLocator(Locator):
     """
-    Place logarithmically spaced ticks.
-
-    Places ticks at the values ``subs[j] * base**i``.
+    Place logarithmically spaced ticks, at the values ``subs[j] * base**i``.
     """
 
     @_api.delete_parameter("3.8", "numdecs")
@@ -2856,14 +2852,11 @@ class AutoLocator(MaxNLocator):
     Place evenly spaced ticks, with the step size and maximum number of ticks chosen
     automatically.
 
-    This is a subclass of `~matplotlib.ticker.MaxNLocator`, with parameters
-    *nbins = 'auto'* and *steps = [1, 2, 2.5, 5, 10]*.
+    This is a subclass of `.MaxNLocator`, with parameters ``nbins = 'auto'`` and
+    ``steps = [1, 2, 2.5, 5, 10]``; other parameters keep their default values.
     """
+
     def __init__(self):
-        """
-        To know the values of the non-public parameters, please have a
-        look to the defaults of `~matplotlib.ticker.MaxNLocator`.
-        """
         if mpl.rcParams['_internal.classic_mode']:
             nbins = 9
             steps = [1, 2, 5, 10]
