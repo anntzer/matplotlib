@@ -23,6 +23,7 @@ import matplotlib as mpl
 from matplotlib import rc_context, patheffects
 import matplotlib.colors as mcolors
 import matplotlib.dates as mdates
+from matplotlib.container import BarContainer
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 from matplotlib.lines import Line2D
@@ -2166,6 +2167,105 @@ def test_bar_datetime_start():
     assert isinstance(ax.xaxis.get_major_formatter(), mdates.AutoDateFormatter)
 
 
+@image_comparison(["grouped_bar.png"], style="mpl20")
+def test_grouped_bar():
+    data = {
+        'data1': [1, 2, 3],
+        'data2': [1.2, 2.2, 3.2],
+        'data3': [1.4, 2.4, 3.4],
+    }
+
+    fig, ax = plt.subplots()
+    ax.grouped_bar(data, tick_labels=['A', 'B', 'C'],
+                   group_spacing=0.5, bar_spacing=0.1,
+                   colors=['#1f77b4', '#58a1cf', '#abd0e6'])
+    ax.set_yticks([])
+
+
+@check_figures_equal()
+def test_grouped_bar_list_of_datasets(fig_test, fig_ref):
+    categories = ['A', 'B']
+    data1 = [1, 1.2]
+    data2 = [2, 2.4]
+    data3 = [3, 3.6]
+
+    ax = fig_test.subplots()
+    ax.grouped_bar([data1, data2, data3], tick_labels=categories,
+                   labels=["data1", "data2", "data3"])
+    ax.legend()
+
+    ax = fig_ref.subplots()
+    label_pos = np.array([0, 1])
+    bar_width = 1 / (3 + 1.5)  # 3 bars + 1.5 group_spacing
+    data_shift = -1 * bar_width + np.array([0, bar_width, 2 * bar_width])
+    ax.bar(label_pos + data_shift[0], data1, width=bar_width, label="data1")
+    ax.bar(label_pos + data_shift[1], data2, width=bar_width, label="data2")
+    ax.bar(label_pos + data_shift[2], data3, width=bar_width, label="data3")
+    ax.set_xticks(label_pos, categories)
+    ax.legend()
+
+
+@check_figures_equal()
+def test_grouped_bar_dict_of_datasets(fig_test, fig_ref):
+    categories = ['A', 'B']
+    data_dict = dict(data1=[1, 1.2], data2=[2, 2.4], data3=[3, 3.6])
+
+    ax = fig_test.subplots()
+    ax.grouped_bar(data_dict, tick_labels=categories)
+    ax.legend()
+
+    ax = fig_ref.subplots()
+    ax.grouped_bar(data_dict.values(), tick_labels=categories, labels=data_dict.keys())
+    ax.legend()
+
+
+@check_figures_equal()
+def test_grouped_bar_array(fig_test, fig_ref):
+    categories = ['A', 'B']
+    array = np.array([[1, 2, 3], [1.2, 2.4, 3.6]])
+    labels = ['data1', 'data2', 'data3']
+
+    ax = fig_test.subplots()
+    ax.grouped_bar(array, tick_labels=categories, labels=labels)
+    ax.legend()
+
+    ax = fig_ref.subplots()
+    list_of_datasets = [column for column in array.T]
+    ax.grouped_bar(list_of_datasets, tick_labels=categories, labels=labels)
+    ax.legend()
+
+
+@check_figures_equal()
+def test_grouped_bar_dataframe(fig_test, fig_ref, pd):
+    categories = ['A', 'B']
+    labels = ['data1', 'data2', 'data3']
+    df = pd.DataFrame([[1, 2, 3], [1.2, 2.4, 3.6]],
+                      index=categories, columns=labels)
+
+    ax = fig_test.subplots()
+    ax.grouped_bar(df)
+    ax.legend()
+
+    ax = fig_ref.subplots()
+    list_of_datasets = [df[col].to_numpy() for col in df.columns]
+    ax.grouped_bar(list_of_datasets, tick_labels=categories, labels=labels)
+    ax.legend()
+
+
+def test_grouped_bar_return_value():
+    fig, ax = plt.subplots()
+    ret = ax.grouped_bar([[1, 2, 3], [11, 12, 13]], tick_labels=['A', 'B', 'C'])
+
+    assert len(ret.bar_containers) == 2
+    for bc in ret.bar_containers:
+        assert isinstance(bc, BarContainer)
+        assert bc in ax.containers
+
+    ret.remove()
+    for bc in ret.bar_containers:
+        assert bc not in ax.containers
+
+
 def test_boxplot_dates_pandas(pd):
     # smoke test for boxplot and dates in pandas
     data = np.random.rand(5, 2)
@@ -3262,16 +3362,16 @@ def test_stackplot():
     y3 = 3.0 * x + 2
     ax = fig.add_subplot(1, 1, 1)
     ax.stackplot(x, y1, y2, y3)
-    ax.set_xlim((0, 10))
-    ax.set_ylim((0, 70))
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 70)
 
     # Reuse testcase from above for a test with labeled data and with colours
     # from the Axes property cycle.
     data = {"x": x, "y1": y1, "y2": y2, "y3": y3}
     fig, ax = plt.subplots()
     ax.stackplot("x", "y1", "y2", "y3", data=data, colors=["C0", "C1", "C2"])
-    ax.set_xlim((0, 10))
-    ax.set_ylim((0, 70))
+    ax.set_xlim(0, 10)
+    ax.set_ylim(0, 70)
 
 
 @image_comparison(['stackplot_test_baseline.png'], remove_text=True)
@@ -3308,16 +3408,16 @@ def test_stackplot_hatching(fig_ref, fig_test):
     # stackplot with different hatching styles (issue #27146)
     ax_test = fig_test.subplots()
     ax_test.stackplot(x, y1, y2, y3, hatch=["x", "//", "\\\\"], colors=["white"])
-    ax_test.set_xlim((0, 10))
-    ax_test.set_ylim((0, 70))
+    ax_test.set_xlim(0, 10)
+    ax_test.set_ylim(0, 70)
     # compare with result from hatching each layer individually
     stack_baseline = np.zeros(len(x))
     ax_ref = fig_ref.subplots()
     ax_ref.fill_between(x, stack_baseline, y1, hatch="x", facecolor="white")
     ax_ref.fill_between(x, y1, y1+y2, hatch="//", facecolor="white")
     ax_ref.fill_between(x, y1+y2, y1+y2+y3, hatch="\\\\", facecolor="white")
-    ax_ref.set_xlim((0, 10))
-    ax_ref.set_ylim((0, 70))
+    ax_ref.set_xlim(0, 10)
+    ax_ref.set_ylim(0, 70)
 
 
 def _bxp_test_helper(
@@ -3594,13 +3694,13 @@ def test_boxplot():
     fig, ax = plt.subplots()
 
     ax.boxplot([x, x], bootstrap=10000, notch=1)
-    ax.set_ylim((-30, 30))
+    ax.set_ylim(-30, 30)
 
     # Reuse testcase from above for a labeled data test
     data = {"x": [x, x]}
     fig, ax = plt.subplots()
     ax.boxplot("x", bootstrap=10000, notch=1, data=data)
-    ax.set_ylim((-30, 30))
+    ax.set_ylim(-30, 30)
 
 
 @check_figures_equal()
@@ -3638,10 +3738,10 @@ def test_boxplot_sym2():
     fig, [ax1, ax2] = plt.subplots(1, 2)
 
     ax1.boxplot([x, x], bootstrap=10000, sym='^')
-    ax1.set_ylim((-30, 30))
+    ax1.set_ylim(-30, 30)
 
     ax2.boxplot([x, x], bootstrap=10000, sym='g')
-    ax2.set_ylim((-30, 30))
+    ax2.set_ylim(-30, 30)
 
 
 @image_comparison(['boxplot_sym.png'],
@@ -3654,7 +3754,7 @@ def test_boxplot_sym():
     fig, ax = plt.subplots()
 
     ax.boxplot([x, x], sym='gs')
-    ax.set_ylim((-30, 30))
+    ax.set_ylim(-30, 30)
 
 
 @image_comparison(['boxplot_autorange_false_whiskers.png',
@@ -3669,11 +3769,11 @@ def test_boxplot_autorange_whiskers():
 
     fig1, ax1 = plt.subplots()
     ax1.boxplot([x, x], bootstrap=10000, notch=1)
-    ax1.set_ylim((-5, 5))
+    ax1.set_ylim(-5, 5)
 
     fig2, ax2 = plt.subplots()
     ax2.boxplot([x, x], bootstrap=10000, notch=1, autorange=True)
-    ax2.set_ylim((-5, 5))
+    ax2.set_ylim(-5, 5)
 
 
 def _rc_test_bxp_helper(ax, rc_dict):
@@ -3763,7 +3863,7 @@ def test_boxplot_with_CIarray():
     # another with manual values
     ax.boxplot([x, x], bootstrap=10000, usermedians=[None, 1.0],
                conf_intervals=CIs, notch=1)
-    ax.set_ylim((-30, 30))
+    ax.set_ylim(-30, 30)
 
 
 @image_comparison(['boxplot_no_inverted_whisker.png'],
@@ -4352,7 +4452,7 @@ def test_errorbar_limits():
                 xlolims=xlolims, xuplims=xuplims, uplims=uplims,
                 lolims=lolims, ls='none', mec='blue', capsize=0,
                 color='cyan')
-    ax.set_xlim((0, 5.5))
+    ax.set_xlim(0, 5.5)
     ax.set_title('Errorbar upper and lower limits')
 
 
@@ -5288,8 +5388,8 @@ def test_vertex_markers():
     fig, ax = plt.subplots()
     ax.plot(data, linestyle='', marker=marker_as_tuple, mfc='k')
     ax.plot(data[::-1], linestyle='', marker=marker_as_list, mfc='b')
-    ax.set_xlim([-1, 10])
-    ax.set_ylim([-1, 10])
+    ax.set_xlim(-1, 10)
+    ax.set_ylim(-1, 10)
 
 
 @image_comparison(['vline_hline_zorder.png', 'errorbar_zorder.png'],
@@ -5558,8 +5658,8 @@ def test_step_linestyle():
         ax.step(x, y, lw=5, linestyle=ls, where='pre')
         ax.step(x, y + 1, lw=5, linestyle=ls, where='mid')
         ax.step(x, y + 2, lw=5, linestyle=ls, where='post')
-        ax.set_xlim([-1, 5])
-        ax.set_ylim([-1, 7])
+        ax.set_xlim(-1, 5)
+        ax.set_ylim(-1, 7)
 
     # Reuse testcase from above for a labeled data test
     data = {"X": x, "Y0": y, "Y1": y+1, "Y2": y+2}
@@ -5570,8 +5670,8 @@ def test_step_linestyle():
         ax.step("X", "Y0", lw=5, linestyle=ls, where='pre', data=data)
         ax.step("X", "Y1", lw=5, linestyle=ls, where='mid', data=data)
         ax.step("X", "Y2", lw=5, linestyle=ls, where='post', data=data)
-        ax.set_xlim([-1, 5])
-        ax.set_ylim([-1, 7])
+        ax.set_xlim(-1, 5)
+        ax.set_ylim(-1, 7)
 
 
 @image_comparison(['mixed_collection'], remove_text=True)
@@ -7132,7 +7232,7 @@ def shared_axes_generator(request):
         ax = ax_lst[0][0]
     elif request.param == 'add_axes':
         fig = plt.figure()
-        ax = fig.add_axes([.1, .1, .8, .8])
+        ax = fig.add_axes((.1, .1, .8, .8))
     return fig, ax
 
 
@@ -7466,7 +7566,7 @@ def test_title_no_move_off_page():
     # make sure that the automatic title repositioning does not get done.
     mpl.rcParams['axes.titley'] = None
     fig = plt.figure()
-    ax = fig.add_axes([0.1, -0.5, 0.8, 0.2])
+    ax = fig.add_axes((0.1, -0.5, 0.8, 0.2))
     ax.tick_params(axis="x",
                    bottom=True, top=True, labelbottom=True, labeltop=True)
     tt = ax.set_title('Boo')
@@ -7808,8 +7908,8 @@ def test_zoom_inset():
     axin1 = ax.inset_axes([0.7, 0.7, 0.35, 0.35])
     # redraw the data in the inset axes...
     axin1.pcolormesh(x, y, z[:-1, :-1])
-    axin1.set_xlim([1.5, 2.15])
-    axin1.set_ylim([2, 2.5])
+    axin1.set_xlim(1.5, 2.15)
+    axin1.set_ylim(2, 2.5)
     axin1.set_aspect(ax.get_aspect())
 
     with pytest.warns(mpl.MatplotlibDeprecationWarning):
@@ -8405,7 +8505,7 @@ def test_aspect_nonlinear_adjustable_box():
 def test_aspect_nonlinear_adjustable_datalim():
     fig = plt.figure(figsize=(10, 10))  # Square.
 
-    ax = fig.add_axes([.1, .1, .8, .8])  # Square.
+    ax = fig.add_axes((.1, .1, .8, .8))  # Square.
     ax.plot([.4, .6], [.4, .6])  # Set minpos to keep logit happy.
     ax.set(xscale="log", xlim=(1, 100),
            yscale="logit", ylim=(1 / 101, 1 / 11),
@@ -8629,7 +8729,7 @@ def test_multiplot_autoscale():
 def test_sharing_does_not_link_positions():
     fig = plt.figure()
     ax0 = fig.add_subplot(221)
-    ax1 = fig.add_axes([.6, .6, .3, .3], sharex=ax0)
+    ax1 = fig.add_axes((.6, .6, .3, .3), sharex=ax0)
     init_pos = ax1.get_position()
     fig.subplots_adjust(left=0)
     assert (ax1.get_position().get_points() == init_pos.get_points()).all()
@@ -9728,7 +9828,7 @@ def test_axes_set_position_external_bbox_unchanged(fig_test, fig_ref):
     ax_test = fig_test.add_axes(bbox)
     ax_test.set_position([0.25, 0.25, 0.5, 0.5])
     assert (bbox.x0, bbox.y0, bbox.width, bbox.height) == (0.0, 0.0, 1.0, 1.0)
-    ax_ref = fig_ref.add_axes([0.25, 0.25, 0.5, 0.5])
+    ax_ref = fig_ref.add_axes((0.25, 0.25, 0.5, 0.5))
 
 
 def test_bar_shape_mismatch():

@@ -722,8 +722,6 @@ class PdfFile:
         self._internal_font_seq = (Name(f'F{i}') for i in itertools.count(1))
         self._fontNames = {}     # maps filenames to internal font names
         self._dviFontInfo = {}   # maps pdf names to dvifonts
-        # differently encoded Type-1 fonts may share the same descriptor
-        self._type1Descriptors = {}
         self._character_tracker = _backend_pdf_ps.CharacterTracker()
 
         self.alphaStates = {}   # maps alpha values to graphics state objects
@@ -766,8 +764,7 @@ class PdfFile:
         self.writeObject(self.resourceObject, resources)
 
     fontNames = _api.deprecated("3.11")(property(lambda self: self._fontNames))
-    type1Descriptors = _api.deprecated("3.11")(
-        property(lambda self: self._type1Descriptors))
+    type1Descriptors = _api.deprecated("3.11")(property(lambda _: {}))
 
     @_api.deprecated("3.11")
     @property
@@ -829,7 +826,14 @@ class PdfFile:
                    }
         self.pageAnnotations.append(theNote)
 
-    def _get_subsetted_psname(self, ps_name, charmap):
+    @staticmethod
+    def _get_subset_prefix(charset):
+        """
+        Get a prefix for a subsetted font name.
+
+        The prefix is six uppercase letters followed by a plus sign;
+        see PDF reference section 5.5.3 Font Subsets.
+        """
         def toStr(n, base):
             if n < base:
                 return string.ascii_uppercase[n]
@@ -839,11 +843,15 @@ class PdfFile:
                 )
 
         # encode to string using base 26
-        hashed = hash(frozenset(charmap.keys())) % ((sys.maxsize + 1) * 2)
+        hashed = hash(charset) % ((sys.maxsize + 1) * 2)
         prefix = toStr(hashed, 26)
 
         # get first 6 characters from prefix
-        return prefix[:6] + "+" + ps_name
+        return prefix[:6] + "+"
+
+    @staticmethod
+    def _get_subsetted_psname(ps_name, charmap):
+        return PdfFile._get_subset_prefix(frozenset(charmap.keys())) + ps_name
 
     def finalize(self):
         """Write out the various deferred objects and the pdf end matter."""
@@ -1000,52 +1008,58 @@ class PdfFile:
                 "the font may lack a Type-1 version"
                 .format(psfont.psname, dvifont.texname))
 
-        # Widths
-        widthsObject = self.reserveObject('font widths')
-        tfm = dvifont._tfm
-        # convert from TeX's 12.20 representation to 1/1000 text space units.
-        widths = [(1000 * metrics.tex_width) >> 20
-                  if (metrics := tfm.get_metrics(char)) else 0
-                  for char in range(max(tfm._glyph_metrics, default=-1) + 1)]
-        self.writeObject(widthsObject, widths)
-
-        # Font dictionary
+        # The font dictionary is the top-level object describing a font
         fontdictObject = self.reserveObject('font dictionary')
         fontdict = {
             'Type':      Name('Font'),
             'Subtype':   Name('Type1'),
-            'FirstChar': 0,
-            'LastChar':  len(widths) - 1,
-            'Widths':    widthsObject,
-            }
+        }
 
-        # Encoding (if needed)
-        if psfont.encoding is not None:
-            fontdict['Encoding'] = {
-                'Type': Name('Encoding'),
-                'Differences': [
-                    0, *map(Name, dviread._parse_enc(psfont.encoding))],
-            }
-
-        # We have a font file to embed - read it in and apply any effects
+        # Read the font file and apply any encoding changes and effects
         t1font = _type1font.Type1Font(psfont.filename)
+        if psfont.encoding is not None:
+            t1font = t1font.with_encoding(
+                {i: c for i, c in enumerate(dviread._parse_enc(psfont.encoding))}
+            )
         if psfont.effects:
             t1font = t1font.transform(psfont.effects)
+
+        # Reduce the font to only the glyphs used in the document, get the encoding
+        # for that subset, and compute various properties based on the encoding.
+        chars = frozenset(self._character_tracker.used[dvifont.fname])
+        t1font = t1font.subset(chars, self._get_subset_prefix(chars))
         fontdict['BaseFont'] = Name(t1font.prop['FontName'])
+        # createType1Descriptor writes the font data as a side effect
+        fontdict['FontDescriptor'] = self.createType1Descriptor(t1font)
+        encoding = t1font.prop['Encoding']
+        fontdict['Encoding'] = self._generate_encoding(encoding)
+        fc = fontdict['FirstChar'] = min(encoding.keys(), default=0)
+        lc = fontdict['LastChar'] = max(encoding.keys(), default=255)
 
-        # Font descriptors may be shared between differently encoded
-        # Type-1 fonts, so only create a new descriptor if there is no
-        # existing descriptor for this font.
-        effects = (psfont.effects.get('slant', 0.0),
-                   psfont.effects.get('extend', 1.0))
-        fontdesc = self._type1Descriptors.get((psfont.filename, effects))
-        if fontdesc is None:
-            fontdesc = self._type1Descriptors[psfont.filename, effects] = \
-                self.createType1Descriptor(t1font)
-        fontdict['FontDescriptor'] = fontdesc
-
+        # Convert glyph widths from TeX 12.20 fixed point to 1/1000 text space units
+        tfm = dvifont._tfm
+        widths = [(1000 * metrics.tex_width) >> 20
+                  if (metrics := tfm.get_metrics(char)) else 0
+                  for char in range(fc, lc + 1)]
+        fontdict['Widths'] = widthsObject = self.reserveObject('glyph widths')
+        self.writeObject(widthsObject, widths)
         self.writeObject(fontdictObject, fontdict)
         return fontdictObject
+
+
+    def _generate_encoding(self, encoding):
+        prev = -2
+        result = []
+        for code, name in sorted(encoding.items()):
+            if code != prev + 1:
+                result.append(code)
+            prev = code
+            result.append(Name(name))
+        return {
+            'Type': Name('Encoding'),
+            'Differences': result
+        }
+
 
     @_api.delete_parameter("3.11", "fontfile")
     def createType1Descriptor(self, t1font, fontfile=None):
@@ -1083,6 +1097,14 @@ class PdfFile:
         if 0:
             flags |= 1 << 18
 
+        encoding = t1font.prop['Encoding']
+        charset = ''.join(
+            sorted(
+                f'/{c}' for c in encoding.values()
+                if c != '.notdef'
+            )
+        )
+
         descriptor = {
             'Type':        Name('FontDescriptor'),
             'FontName':    Name(t1font.prop['FontName']),
@@ -1096,6 +1118,7 @@ class PdfFile:
             'FontFile':    fontfileObject,
             'FontFamily':  t1font.prop['FamilyName'],
             'StemV':       50,  # TODO
+            'CharSet':     charset,
             # (see also revision 3874; but not all TeX distros have AFM files!)
             # 'FontWeight': a number where 400 = Regular, 700 = Bold
         }
@@ -1582,6 +1605,8 @@ end"""
                             Op.setrgb_nonstroke,
                             0, 0, sidelen, sidelen, Op.rectangle,
                             Op.fill)
+            self.output(stroke_rgb[0], stroke_rgb[1], stroke_rgb[2],
+                        Op.setrgb_nonstroke)
 
             self.output(lw, Op.setlinewidth)
 
@@ -2273,6 +2298,7 @@ class RendererPdf(_backend_pdf_ps.RendererPDFPSBase):
                 seq += [['font', pdfname, dvifont.size]]
                 oldfont = dvifont
             seq += [['text', x1, y1, [bytes([glyph])], x1+width]]
+            self.file._character_tracker.track(dvifont, chr(glyph))
 
         # Find consecutive text strings with constant y coordinate and
         # combine into a sequence of strings and kerns, or just one

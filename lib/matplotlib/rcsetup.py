@@ -24,7 +24,7 @@ import numpy as np
 
 import matplotlib as mpl
 from matplotlib import _api, cbook
-from matplotlib.backends import BackendFilter, backend_registry
+from matplotlib.backends import backend_registry
 from matplotlib.cbook import ls_mapper
 from matplotlib.colors import Colormap, is_color_like
 from matplotlib._fontconfig_pattern import parse_fontconfig_pattern
@@ -32,32 +32,6 @@ from matplotlib._enums import JoinStyle, CapStyle
 
 # Don't let the original cycler collide with our validating cycler
 from cycler import Cycler, cycler as ccycler
-
-
-@_api.caching_module_getattr
-class __getattr__:
-    @_api.deprecated(
-        "3.9",
-        alternative="``matplotlib.backends.backend_registry.list_builtin"
-            "(matplotlib.backends.BackendFilter.INTERACTIVE)``")
-    @property
-    def interactive_bk(self):
-        return backend_registry.list_builtin(BackendFilter.INTERACTIVE)
-
-    @_api.deprecated(
-        "3.9",
-        alternative="``matplotlib.backends.backend_registry.list_builtin"
-            "(matplotlib.backends.BackendFilter.NON_INTERACTIVE)``")
-    @property
-    def non_interactive_bk(self):
-        return backend_registry.list_builtin(BackendFilter.NON_INTERACTIVE)
-
-    @_api.deprecated(
-        "3.9",
-        alternative="``matplotlib.backends.backend_registry.list_builtin()``")
-    @property
-    def all_backends(self):
-        return backend_registry.list_builtin()
 
 
 class ValidateInStrings:
@@ -387,6 +361,12 @@ def validate_color(s):
     raise ValueError(f'{s!r} does not look like a color arg')
 
 
+def _validate_color_or_None(s):
+    if s is None or cbook._str_equal(s, "None"):
+        return None
+    return validate_color(s)
+
+
 validate_colorlist = _listify_validator(
     validate_color, allow_stringlist=True, doc='return a list of colorspecs')
 
@@ -539,6 +519,13 @@ def _validate_linestyle(ls):
             return (offset, onoff)
 
     raise ValueError(f"linestyle {ls!r} is not a valid on-off ink sequence.")
+
+
+def _validate_linestyle_or_None(s):
+    if s is None or cbook._str_equal(s, "None"):
+        return None
+
+    return _validate_linestyle(s)
 
 
 validate_fillstyle = ValidateInStrings(
@@ -1267,6 +1254,16 @@ _validators = {
     "grid.linestyle":    _validate_linestyle,  # solid
     "grid.linewidth":    validate_float,     # in points
     "grid.alpha":        validate_float,
+
+    "grid.major.color":        _validate_color_or_None,  # grid color
+    "grid.major.linestyle":    _validate_linestyle_or_None,  # solid
+    "grid.major.linewidth":    validate_float_or_None,     # in points
+    "grid.major.alpha":        validate_float_or_None,
+
+    "grid.minor.color":        _validate_color_or_None,  # grid color
+    "grid.minor.linestyle":    _validate_linestyle_or_None,  # solid
+    "grid.minor.linewidth":    validate_float_or_None,     # in points
+    "grid.minor.alpha":        validate_float_or_None,
 
     ## figure props
     # figure title

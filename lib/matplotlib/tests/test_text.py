@@ -144,8 +144,8 @@ def test_multiline2():
 
     fig, ax = plt.subplots()
 
-    ax.set_xlim([0, 1.4])
-    ax.set_ylim([0, 2])
+    ax.set_xlim(0, 1.4)
+    ax.set_ylim(0, 2)
     ax.axhline(0.5, color='C2', linewidth=0.3)
     sts = ['Line', '2 Lineg\n 2 Lg', '$\\sum_i x $', 'hi $\\sum_i x $\ntest',
            'test\n $\\sum_i x $', '$\\sum_i x $\n $\\sum_i x $']
@@ -206,13 +206,6 @@ def test_antialiasing():
              verticalalignment='center', antialiased=False)
 
     mpl.rcParams['text.antialiased'] = False  # Should not affect existing text.
-
-
-def test_afm_kerning():
-    fn = mpl.font_manager.findfont("Helvetica", fontext="afm")
-    with open(fn, 'rb') as fh:
-        afm = mpl._afm.AFM(fh)
-    assert afm.string_width_height('VAVAVAVAVAVA') == (7174.0, 718)
 
 
 @image_comparison(['text_contains.png'])

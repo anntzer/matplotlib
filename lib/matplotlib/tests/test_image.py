@@ -9,7 +9,7 @@ import sys
 import urllib.request
 
 import numpy as np
-from numpy.testing import assert_array_equal
+from numpy.testing import assert_allclose, assert_array_equal
 from PIL import Image
 
 import matplotlib as mpl
@@ -18,7 +18,7 @@ from matplotlib import (
 from matplotlib.image import (AxesImage, BboxImage, FigureImage,
                               NonUniformImage, PcolorImage)
 from matplotlib.testing.decorators import check_figures_equal, image_comparison
-from matplotlib.transforms import Bbox, Affine2D, TransformedBbox
+from matplotlib.transforms import Bbox, Affine2D, Transform, TransformedBbox
 import matplotlib.ticker as mticker
 
 import pytest
@@ -114,12 +114,12 @@ def test_imshow_zoom(fig_test, fig_ref):
         fig.set_size_inches(2.9, 2.9)
     ax = fig_test.subplots()
     ax.imshow(A, interpolation='auto')
-    ax.set_xlim([10, 20])
-    ax.set_ylim([10, 20])
+    ax.set_xlim(10, 20)
+    ax.set_ylim(10, 20)
     ax = fig_ref.subplots()
     ax.imshow(A, interpolation='nearest')
-    ax.set_xlim([10, 20])
-    ax.set_ylim([10, 20])
+    ax.set_xlim(10, 20)
+    ax.set_ylim(10, 20)
 
 
 @check_figures_equal()
@@ -526,7 +526,7 @@ def test_image_shift():
 
 def test_image_edges():
     fig = plt.figure(figsize=[1, 1])
-    ax = fig.add_axes([0, 0, 1, 1], frameon=False)
+    ax = fig.add_axes((0, 0, 1, 1), frameon=False)
 
     data = np.tile(np.arange(12), 15).reshape(20, 9)
 
@@ -534,8 +534,8 @@ def test_image_edges():
                    interpolation='none', cmap='gray')
 
     x = y = 2
-    ax.set_xlim([-x, x])
-    ax.set_ylim([-y, y])
+    ax.set_xlim(-x, x)
+    ax.set_ylim(-y, y)
 
     ax.set_xticks([])
     ax.set_yticks([])
@@ -560,7 +560,7 @@ def test_image_composite_background():
     ax.imshow(arr, extent=[0, 2, 15, 0])
     ax.imshow(arr, extent=[4, 6, 15, 0])
     ax.set_facecolor((1, 0, 0, 0.5))
-    ax.set_xlim([0, 12])
+    ax.set_xlim(0, 12)
 
 
 @image_comparison(['image_composite_alpha'], remove_text=True, tol=0.07)
@@ -586,8 +586,8 @@ def test_image_composite_alpha():
     ax.imshow(arr2, extent=[0, 5, 2, 3], alpha=0.6)
     ax.imshow(arr2, extent=[0, 5, 3, 4], alpha=0.3)
     ax.set_facecolor((0, 0.5, 0, 1))
-    ax.set_xlim([0, 5])
-    ax.set_ylim([5, 0])
+    ax.set_xlim(0, 5)
+    ax.set_ylim(5, 0)
 
 
 @check_figures_equal(extensions=["pdf"])
@@ -1214,7 +1214,7 @@ def test_exact_vmin():
 
     # make the image exactly 190 pixels wide
     fig = plt.figure(figsize=(1.9, 0.1), dpi=100)
-    ax = fig.add_axes([0, 0, 1, 1])
+    ax = fig.add_axes((0, 0, 1, 1))
 
     data = np.array(
         [[-1, -1, -1, 0, 0, 0, 0, 43, 79, 95, 66, 1, -1, -1, -1, 0, 0, 0, 34]],
@@ -1491,8 +1491,8 @@ def test_rgba_antialias():
     axs = axs.flatten()
     # zoom in
     axs[0].imshow(aa, interpolation='nearest', cmap=cmap, vmin=-1.2, vmax=1.2)
-    axs[0].set_xlim([N/2-25, N/2+25])
-    axs[0].set_ylim([N/2+50, N/2-10])
+    axs[0].set_xlim(N/2-25, N/2+25)
+    axs[0].set_ylim(N/2+50, N/2-10)
 
     # no anti-alias
     axs[1].imshow(aa, interpolation='nearest', cmap=cmap, vmin=-1.2, vmax=1.2)
@@ -1639,6 +1639,40 @@ def test__resample_valid_output():
     out.flags.writeable = False
     with pytest.raises(ValueError, match="Output array must be writeable"):
         resample(np.zeros((9, 9)), out)
+
+
+@pytest.mark.parametrize("data, interpolation, expected",
+    [(np.array([[0.1, 0.3, 0.2]]), mimage.NEAREST,
+      np.array([[0.1, 0.1, 0.1, 0.3, 0.3, 0.3, 0.3, 0.2, 0.2, 0.2]])),
+     (np.array([[0.1, 0.3, 0.2]]), mimage.BILINEAR,
+      np.array([[0.1, 0.1, 0.15078125, 0.21096191, 0.27033691,
+                 0.28476562, 0.2546875, 0.22460938, 0.20002441, 0.20002441]])),
+    ]
+)
+def test_resample_nonaffine(data, interpolation, expected):
+    # Test that equivalent affine and nonaffine transforms resample the same
+
+    # Create a simple affine transform for scaling the input array
+    affine_transform = Affine2D().scale(sx=expected.shape[1] / data.shape[1], sy=1)
+
+    affine_result = np.empty_like(expected)
+    mimage.resample(data, affine_result, affine_transform, interpolation=interpolation)
+    assert_allclose(affine_result, expected)
+
+    # Create a nonaffine version of the same transform
+    # by compositing with a nonaffine identity transform
+    class NonAffineIdentityTransform(Transform):
+        input_dims = 2
+        output_dims = 2
+
+        def inverted(self):
+           return self
+    nonaffine_transform = NonAffineIdentityTransform() + affine_transform
+
+    nonaffine_result = np.empty_like(expected)
+    mimage.resample(data, nonaffine_result, nonaffine_transform,
+                    interpolation=interpolation)
+    assert_allclose(nonaffine_result, expected, atol=5e-3)
 
 
 def test_axesimage_get_shape():
