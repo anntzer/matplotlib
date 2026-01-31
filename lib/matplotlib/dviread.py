@@ -967,7 +967,7 @@ class TexMetrics:
 
 class Tfm:
     """
-    A TeX Font Metric file.
+    A TeX Font Metric file (see ``texdoc tftopl`` for the format's description).
 
     This implementation covers only the bare minimum needed by the Dvi class.
 
@@ -987,17 +987,46 @@ class Tfm:
     def __init__(self, filename):
         _log.debug('opening tfm file %s', filename)
         with open(filename, 'rb') as file:
-            header1 = file.read(24)
-            lh, bc, ec, nw, nh, nd = struct.unpack('!6H', header1[2:14])
-            _log.debug('lh=%d, bc=%d, ec=%d, nw=%d, nh=%d, nd=%d',
-                       lh, bc, ec, nw, nh, nd)
-            header2 = file.read(4*lh)
-            self.checksum, self.design_size = struct.unpack('!2I', header2[:8])
+            lf, lh, bc, ec, nw, nh, nd, ni, nl, nk, ne, np = struct.unpack(
+                '!12H', file.read(24))
+            _log.debug('lf=%d, lh=%d, bc=%d, ec=%d, nw=%d, nh=%d, '
+                       'nd=%d, ni=%d, nl=%d, nk=%d, ne=%d, np=%d',
+                       lf, lh, bc, ec, nw, nh, nd, ni, nl, nk, ne, np)
+            (self.checksum, self.design_size,
+             char_coding_scheme, font_id, bitmask) = struct.unpack(
+                 '!II40s20sI', file.read(4*lh))
+            char_coding_scheme = char_coding_scheme[1:].rstrip(b"\0").decode("ascii")
+            font_id = font_id[1:].rstrip(b"\0").decode("ascii")
+            _log.debug(
+                'checksum=%d, design_size=%d, '
+                'char_coding_scheme=%s, font_id=%s, bitmask=%#2X',
+                self.checksum, self.design_size,
+                char_coding_scheme, font_id,
+                bitmask)
             # there is also encoding information etc.
             char_info = file.read(4*(ec-bc+1))
             widths = struct.unpack(f'!{nw}i', file.read(4*nw))
             heights = struct.unpack(f'!{nh}i', file.read(4*nh))
             depths = struct.unpack(f'!{nd}i', file.read(4*nd))
+            charic = struct.unpack(f'!{ni}i', file.read(4*ni))
+            lig_kern = struct.unpack(f'!{nl}i', file.read(4*nl))
+            kern = struct.unpack(f'!{nk}i', file.read(4*nk))
+            ext = struct.unpack(f'!{ne}i', file.read(4*ne))
+            param = struct.unpack(f'!{np}i', file.read(4*np))
+            _log.debug(
+                'slant=%d, space=%d, space_stretch=%d, space_shrink=%d, '
+                'x_height=%d, quad=%d, extra_space=%d', *param[:7])
+            if char_coding_scheme == "TeX math symbols":
+                _log.debug(
+                    'num1=%d, num2=%d, num3=%d, denom1=%d, denom2=%d, '
+                    'sup1=%d, sup2=%d, sup3=%d, sub1=%d, sub2=%d, '
+                    'supdrop=%d, subdrop=%d, delim1=%d, delim2=%d, axis_height=%d',
+                    *param[7:22])
+            elif char_coding_scheme == "TeX math extension":
+                _log.debug(
+                    'default_rule_thickness=%d, big_op_spacing1=%d, '
+                    'big_op_spacing2=%d, big_op_spacing3=%d, big_op_spacing4=%d ,'
+                    'big_op_spacing5=%d', *param[7:13])
         self._glyph_metrics = {}
         for idx, char in enumerate(range(bc, ec+1)):
             byte0 = char_info[4*idx]
